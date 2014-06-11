@@ -57,7 +57,7 @@ public class DistinctTriplesEqualityBaseline {
                 VirtuosoQueryExecution vqe = VirtuosoQueryExecutionFactory.create(query, graph);
                 ResultSet results = vqe.execSelect();
                 while(results.hasNext()) {
-                    QuerySolution result = results.nextSolution();
+                    QuerySolution result = results.next();
                     RDFNode predicate = result.get("p");
                     RDFNode object = result.get("o");
                     for (String targetDataset : datasetList) {
@@ -83,11 +83,13 @@ public class DistinctTriplesEqualityBaseline {
                                 }
 
                             }
+                            targetGraph.close();
                         }
                     }
                 }
                 commonMap.put(sourceDataset, map);
                 doneList.add(sourceDataset);
+                graph.close();
             }
         } catch (FileNotFoundException e) {
             e.printStackTrace();
