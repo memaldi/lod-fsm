@@ -10,7 +10,9 @@ public class Main {
 
     public static void main(String[] args) {
 
-        PrefixComparisonBaseline pcb = new PrefixComparisonBaseline();
-        pcb.launch(CSV_LOCATION);
+        //PrefixComparisonBaseline pcb = new PrefixComparisonBaseline();
+        //pcb.launch(CSV_LOCATION);
+        DistinctTriplesEqualityBaseline dteb = new DistinctTriplesEqualityBaseline();
+        dteb.launch(CSV_LOCATION);
     }
 }
