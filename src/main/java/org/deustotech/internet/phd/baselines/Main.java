@@ -10,6 +10,9 @@ public class Main {
 
     public static void main(String[] args) {
 
+        if (args.length > 0) {
+            CSV_LOCATION = args[0];
+        }
         //PrefixComparisonBaseline pcb = new PrefixComparisonBaseline();
         //pcb.launch(CSV_LOCATION);
         DistinctTriplesEqualityBaseline dteb = new DistinctTriplesEqualityBaseline();
