@@ -14,12 +14,15 @@ import java.io.*;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.*;
+import java.util.logging.Logger;
 
 /**
  * Created by mikel (m.emaldi at deusto dot es) (m.emaldi at deusto dot es) on 11/06/14.
  */
 public class DistinctTriplesEqualityBaseline {
     public void launch(String csvLocation) {
+        Logger logger = Logger.getLogger(this.getClass().getName());
+        logger.info("Initializing...");
         Properties prop = new Properties();
         InputStream input;
         try {
@@ -50,6 +53,7 @@ public class DistinctTriplesEqualityBaseline {
             Map<String, Map<String, Integer>> commonMap = new HashMap<String, Map<String, Integer>>();
             Map<String, Set<String>> exclusionMap = new HashMap<String, Set<String>>();
             for (String sourceDataset : datasetList) {
+                logger.info(String.format("Analyzing %s dataset...", sourceDataset));
                 Map<String, Integer> map = new HashMap<String, Integer>();
                 assert connectionURL != null;
                 VirtGraph graph = new VirtGraph("http://" + sourceDataset, connectionURL.toString(), prop.getProperty("virtuoso_user"), prop.getProperty("virtuoso_password"));
@@ -60,7 +64,7 @@ public class DistinctTriplesEqualityBaseline {
                     QuerySolution result = results.next();
                     RDFNode predicate = result.get("p");
                     RDFNode object = result.get("o");
-                    System.out.println(String.format("%s - %s", predicate, object));
+                    //System.out.println(String.format("%s - %s", predicate, object));
                     if (!exclusionMap.containsKey(predicate.toString())) {
                         Set<String> datasetSet = new HashSet<String>();
                         for (String dataset : datasetList) {
@@ -83,7 +87,7 @@ public class DistinctTriplesEqualityBaseline {
                             VirtGraph targetGraph = new VirtGraph("http://" + targetDataset, connectionURL.toString(), prop.getProperty("virtuoso_user"), prop.getProperty("virtuoso_password"));
                             Query targetQuery;
                             if (object.isLiteral()) {
-                                targetQuery = QueryFactory.create(String.format("ASK { ?s <%s> \"%s\"}", predicate, object.toString().replace("\"", "\\\"")));
+                                targetQuery = QueryFactory.create(String.format("ASK { ?s <%s> \"%s\"}", predicate, object.toString().replace("\"", "").replace("\\", "")));
                             } else {
                                 targetQuery = QueryFactory.create(String.format("ASK { ?s <%s> <%s>}", predicate, object));
                             }
