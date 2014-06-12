@@ -113,5 +113,6 @@ public class DistinctTriplesEqualityBaseline {
         } catch (IOException e) {
             e.printStackTrace();
         }
+        logger.info("End!");
     }
 }
