@@ -8,8 +8,6 @@ import com.hp.hpl.jena.rdf.model.RDFNode;
 import net.ericaro.neoitertools.Generator;
 import net.ericaro.neoitertools.Itertools;
 import org.apache.http.client.utils.URIBuilder;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClients;
 import virtuoso.jena.driver.VirtGraph;
 import virtuoso.jena.driver.VirtuosoQueryExecution;
 import virtuoso.jena.driver.VirtuosoQueryExecutionFactory;
