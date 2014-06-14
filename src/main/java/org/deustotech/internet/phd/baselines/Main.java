@@ -1,5 +1,7 @@
 package org.deustotech.internet.phd.baselines;
 
+import org.deustotech.internet.phd.framework.rdf2subdue.RDF2Subdue;
+
 /**
  * Created by mikel on 10/06/14.
  */
@@ -15,7 +17,9 @@ public class Main {
         }
         //PrefixComparisonBaseline pcb = new PrefixComparisonBaseline();
         //pcb.launch(CSV_LOCATION);
-        DistinctTriplesEqualityBaseline dteb = new DistinctTriplesEqualityBaseline();
-        dteb.launch(CSV_LOCATION);
+        //DistinctTriplesEqualityBaseline dteb = new DistinctTriplesEqualityBaseline();
+        //dteb.launch(CSV_LOCATION);
+        RDF2Subdue rdf2Subdue = new RDF2Subdue();
+        rdf2Subdue.launch("acm");
     }
 }
