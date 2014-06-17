@@ -20,6 +20,6 @@ public class Main {
         //DistinctTriplesEqualityBaseline dteb = new DistinctTriplesEqualityBaseline();
         //dteb.launch(CSV_LOCATION);
         RDF2Subdue rdf2Subdue = new RDF2Subdue();
-        rdf2Subdue.launch("acm");
+        rdf2Subdue.launch("acm", "/home/mikel/doctorado/src/java/baselines/output");
     }
 }

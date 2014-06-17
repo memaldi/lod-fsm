@@ -21,9 +21,7 @@ import virtuoso.jena.driver.VirtGraph;
 import virtuoso.jena.driver.VirtuosoQueryExecution;
 import virtuoso.jena.driver.VirtuosoQueryExecutionFactory;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InterruptedIOException;
+import java.io.*;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
@@ -33,11 +31,120 @@ import java.util.UUID;
 import java.util.logging.Logger;
 
 /**
- * Created by memaldi on 14/06/14.
+ * Created by memaldi (m.emaldi at deusto dot es) on 14/06/14.
  */
 public class RDF2Subdue {
 
-    public void launch(String dataset) {
+    public void launch(String dataset, String outputDir) {
+        generateId(dataset);
+        writeFile(dataset, outputDir);
+    }
+
+    private void writeFile(String dataset, String outputDir) {
+        Logger logger = Logger.getLogger(RDF2Subdue.class.getName());
+        Configuration conf = HBaseConfiguration.create();
+        HTable table = null;
+        try {
+            table = new HTable(conf, dataset);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        logger.info("Writing files...");
+        String dir = String.format("%s/%s", outputDir, dataset);
+        new File(dir).mkdir();
+        logger.info("Counting vertices...");
+        List<Filter> filterList = new ArrayList<>();
+        SingleColumnValueFilter filter = new SingleColumnValueFilter(Bytes.toBytes("cf"), Bytes.toBytes("type"), CompareFilter.CompareOp.EQUAL, Bytes.toBytes("vertex"));
+        filter.setFilterIfMissing(true);
+        filterList.add(filter);
+        FilterList fl = new FilterList(FilterList.Operator.MUST_PASS_ALL, filterList);
+        Scan scan = new Scan();
+        scan.setFilter(fl);
+
+        try {
+            ResultScanner scanner = table.getScanner(scan);
+            Result scannerResult;
+            long total = 0;
+            while((scannerResult = scanner.next()) != null) {
+                total++;
+            }
+            scanner.close();
+
+            boolean end = false;
+            int limit = 1000;
+            long lowerLimit = 0;
+            long upperLimit = 1000;
+            int count = 1;
+
+            while (!end) {
+                logger.info(String.format("Writing %s_%s.g...", dataset, count));
+                filterList = new ArrayList<>();
+                SingleColumnValueFilter lowerFilter = new SingleColumnValueFilter(Bytes.toBytes("cf"), Bytes.toBytes("id"), CompareFilter.CompareOp.GREATER, Bytes.toBytes(lowerLimit));
+                lowerFilter.setFilterIfMissing(true);
+                SingleColumnValueFilter upperFilter = new SingleColumnValueFilter(Bytes.toBytes("cf"), Bytes.toBytes("id"), CompareFilter.CompareOp.LESS_OR_EQUAL, Bytes.toBytes(upperLimit));
+                upperFilter.setFilterIfMissing(true);
+                filterList.add(lowerFilter);
+                filterList.add(upperFilter);
+                fl = new FilterList(FilterList.Operator.MUST_PASS_ALL, filterList);
+                scan = new Scan();
+                scan.setFilter(fl);
+                scanner = table.getScanner(scan);
+                File file = new File(String.format("%s/%s_%s.g", dir, dataset, count));
+                FileWriter fw = new FileWriter(file.getAbsoluteFile());
+                BufferedWriter bw = new BufferedWriter(fw);
+                while ((scannerResult = scanner.next()) != null) {
+                    long id = Bytes.toLong(scannerResult.getValue(Bytes.toBytes("cf"), Bytes.toBytes("id")));
+                    String label = Bytes.toString(scannerResult.getValue(Bytes.toBytes("cf"), Bytes.toBytes("label")));
+                    bw.write(String.format("v %s %s\n", id, label));
+                }
+                scanner.close();
+                bw.flush();
+
+                filterList = new ArrayList<>();
+                SingleColumnValueFilter sourceLowerFilter = new SingleColumnValueFilter(Bytes.toBytes("cf"), Bytes.toBytes("source"), CompareFilter.CompareOp.GREATER, Bytes.toBytes(lowerLimit));
+                sourceLowerFilter.setFilterIfMissing(true);
+                SingleColumnValueFilter sourceUpperFilter = new SingleColumnValueFilter(Bytes.toBytes("cf"), Bytes.toBytes("source"), CompareFilter.CompareOp.LESS_OR_EQUAL, Bytes.toBytes(upperLimit));
+                sourceUpperFilter.setFilterIfMissing(true);
+                SingleColumnValueFilter targetLowerFilter = new SingleColumnValueFilter(Bytes.toBytes("cf"), Bytes.toBytes("target"), CompareFilter.CompareOp.GREATER, Bytes.toBytes(lowerLimit));
+                targetLowerFilter.setFilterIfMissing(true);
+                SingleColumnValueFilter targetUpperFilter = new SingleColumnValueFilter(Bytes.toBytes("cf"), Bytes.toBytes("target"), CompareFilter.CompareOp.LESS_OR_EQUAL, Bytes.toBytes(upperLimit));
+                targetUpperFilter.setFilterIfMissing(true);
+
+                filterList.add(sourceLowerFilter);
+                filterList.add(sourceUpperFilter);
+                filterList.add(targetLowerFilter);
+                filterList.add(targetUpperFilter);
+
+                fl = new FilterList(FilterList.Operator.MUST_PASS_ALL, filterList);
+                scan = new Scan();
+                scan.setFilter(fl);
+                scanner = table.getScanner(scan);
+
+                while ((scannerResult = scanner.next()) != null) {
+                    long source = Bytes.toLong(scannerResult.getValue(Bytes.toBytes("cf"), Bytes.toBytes("source")));
+                    long target = Bytes.toLong(scannerResult.getValue(Bytes.toBytes("cf"), Bytes.toBytes("target")));
+                    String label = Bytes.toString(scannerResult.getValue(Bytes.toBytes("cf"), Bytes.toBytes("label")));
+                    bw.write(String.format("d %s %s %s\n", source, target, label));
+                }
+                bw.flush();
+                bw.close();
+
+                lowerLimit += limit;
+                upperLimit += limit;
+                count ++;
+                if (lowerLimit > total) {
+                    end = true;
+                }
+            }
+
+            logger.info("End!");
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void generateId(String dataset) {
         Logger logger = Logger.getLogger(RDF2Subdue.class.getName());
         logger.info("Initializing...");
         Properties prop = new Properties();
@@ -138,6 +245,7 @@ public class RDF2Subdue {
                     while((scannerResult2 = scanner2.next()) != null) {
                         sourceId = scannerResult2.getValue(Bytes.toBytes("cf"), Bytes.toBytes("id"));
                     }
+                    scanner2.close();
                     if (idList.size() == 0) {
                         if (result.contains("class")) {
                             RDFNode rdfType = result.get("class");
@@ -224,6 +332,6 @@ public class RDF2Subdue {
             e.printStackTrace();
         }
 
-        logger.info("Done!");
+        logger.info("Loading Done!");
     }
 }
