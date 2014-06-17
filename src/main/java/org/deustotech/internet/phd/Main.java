@@ -25,7 +25,7 @@ public class Main {
                     System.out.println("Invalid number of parameters!");
                     exit(1);
                 }
-                RDF2Subdue.launch(args[1], args[2]);
+                RDF2Subdue.run(args[1], args[2]);
                 break;
         }
     }

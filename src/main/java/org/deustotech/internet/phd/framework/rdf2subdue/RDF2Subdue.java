@@ -35,7 +35,7 @@ import java.util.logging.Logger;
  */
 public class RDF2Subdue {
 
-    public static void launch(String dataset, String outputDir) {
+    public static void run(String dataset, String outputDir) {
         generateId(dataset);
         writeFile(dataset, outputDir);
     }
