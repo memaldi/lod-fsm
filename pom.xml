@@ -23,7 +23,7 @@
                 <configuration>
                     <mainClass>org.deustotech.internet.phd.baselines.Main</mainClass>
                     <arguments>
-                        <argument>/home/mikel/doctorado/src/LDClassifier-python/LDClassifier-python/baselines/test-datasets.csv</argument>
+                        <argument>test-datasets.csv</argument>
                     </arguments>
                 </configuration>
             </plugin>
