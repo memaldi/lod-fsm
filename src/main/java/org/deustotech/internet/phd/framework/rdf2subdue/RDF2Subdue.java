@@ -35,12 +35,12 @@ import java.util.logging.Logger;
  */
 public class RDF2Subdue {
 
-    public void launch(String dataset, String outputDir) {
+    public static void launch(String dataset, String outputDir) {
         generateId(dataset);
         writeFile(dataset, outputDir);
     }
 
-    private void writeFile(String dataset, String outputDir) {
+    private static void writeFile(String dataset, String outputDir) {
         Logger logger = Logger.getLogger(RDF2Subdue.class.getName());
         Configuration conf = HBaseConfiguration.create();
         HTable table = null;
@@ -144,7 +144,7 @@ public class RDF2Subdue {
         }
     }
 
-    private void generateId(String dataset) {
+    private static void generateId(String dataset) {
         Logger logger = Logger.getLogger(RDF2Subdue.class.getName());
         logger.info("Initializing...");
         Properties prop = new Properties();

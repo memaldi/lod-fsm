@@ -2,9 +2,15 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>eu.deustotech.internet.phd.baselines</groupId>
-    <artifactId>baselines</artifactId>
+    <groupId>eu.deustotech.internet.phd</groupId>
+    <artifactId>phd</artifactId>
     <version>1.0-SNAPSHOT</version>
+    <properties>
+        <launch>rdf2subdue</launch>
+        <args.1>dataset</args.1>
+        <args.2>output</args.2>
+    </properties>
+
     <build>
         <plugins>
             <plugin>
@@ -21,9 +27,11 @@
                 <artifactId>exec-maven-plugin</artifactId>
                 <version>1.2.1</version>
                 <configuration>
-                    <mainClass>org.deustotech.internet.phd.baselines.Main</mainClass>
+                    <mainClass>org.deustotech.internet.phd.Main</mainClass>
                     <arguments>
-                        <argument>test-datasets.csv</argument>
+                        <argument>${launch}</argument>
+                        <argument>${args.1}</argument>
+                        <argument>${args.2}</argument>
                     </arguments>
                 </configuration>
             </plugin>
