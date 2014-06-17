@@ -12,6 +12,7 @@ import org.apache.hadoop.hbase.HColumnDescriptor;
 import org.apache.hadoop.hbase.HTableDescriptor;
 import org.apache.hadoop.hbase.client.*;
 import org.apache.hadoop.hbase.filter.CompareFilter;
+import org.apache.hadoop.hbase.filter.Filter;
 import org.apache.hadoop.hbase.filter.FilterList;
 import org.apache.hadoop.hbase.filter.SingleColumnValueFilter;
 import org.apache.hadoop.hbase.util.Bytes;
@@ -107,10 +108,11 @@ public class RDF2Subdue {
                 }
                 id++;
             } else if (object.isResource()) {
-                FilterList fl = new FilterList(FilterList.Operator.MUST_PASS_ALL);
+                List<Filter> filterList = new ArrayList<Filter>();
                 SingleColumnValueFilter filter = new SingleColumnValueFilter(Bytes.toBytes("cf"), Bytes.toBytes("uri"), CompareFilter.CompareOp.EQUAL, Bytes.toBytes(object.toString()));
                 filter.setFilterIfMissing(true);
-                fl.addFilter(filter);
+                filterList.add(filter);
+                FilterList fl = new FilterList(FilterList.Operator.MUST_PASS_ALL, filterList);
                 Scan scan = new Scan();
                 scan.setFilter(fl);
                 try {
@@ -123,12 +125,13 @@ public class RDF2Subdue {
                         idList.add(Bytes.toLong(objectId));
                     }
                     byte[] sourceId = null;
-                    FilterList fl2 = new FilterList(FilterList.Operator.MUST_PASS_ALL);
+                    List<Filter> filterList2 = new ArrayList<Filter>();
                     SingleColumnValueFilter filter2 = new SingleColumnValueFilter(Bytes.toBytes("cf"), Bytes.toBytes("uri"), CompareFilter.CompareOp.EQUAL, Bytes.toBytes(subject.toString()));
                     filter2.setFilterIfMissing(true);
-                    fl2.addFilter(filter2);
+                    filterList2.add(filter2);
+                    Filter fl2 = new FilterList(FilterList.Operator.MUST_PASS_ALL, filterList2);
                     Scan scan2 = new Scan();
-                    scan.setFilter(fl2);
+                    scan2.setFilter(fl2);
                     ResultScanner scanner2 = table.getScanner(scan2);
                     Result scannerResult2;
 
@@ -185,10 +188,11 @@ public class RDF2Subdue {
                     e.printStackTrace();
                 }
 
-                FilterList fl = new FilterList(FilterList.Operator.MUST_PASS_ALL);
+                List<Filter> filterList = new ArrayList<Filter>();
                 SingleColumnValueFilter filter = new SingleColumnValueFilter(Bytes.toBytes("cf"), Bytes.toBytes("uri"), CompareFilter.CompareOp.EQUAL, Bytes.toBytes(subject.toString()));
                 filter.setFilterIfMissing(true);
-                fl.addFilter(filter);
+                filterList.add(filter);
+                FilterList fl = new FilterList(FilterList.Operator.MUST_PASS_ALL, filterList);
                 Scan scan = new Scan();
                 scan.setFilter(fl);
                 try {
