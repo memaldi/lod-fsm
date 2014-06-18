@@ -1,27 +1,50 @@
 package org.deustotech.internet.phd.framework.generatealignments;
 
+import net.ericaro.neoitertools.Generator;
+import net.ericaro.neoitertools.Itertools;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.HColumnDescriptor;
 import org.apache.hadoop.hbase.HTableDescriptor;
-import org.apache.hadoop.hbase.client.HBaseAdmin;
-import org.apache.hadoop.hbase.client.HTable;
+import org.apache.hadoop.hbase.client.*;
 
-import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.util.*;
 import java.util.logging.Logger;
+import fr.inrialpes.exmo.ontosim.string.StringDistances;
+import fr.inrialpes.exmo.ontosim.string.JWNLDistances;
+import org.apache.hadoop.hbase.filter.CompareFilter;
+import org.apache.hadoop.hbase.filter.Filter;
+import org.apache.hadoop.hbase.filter.FilterList;
+import org.apache.hadoop.hbase.filter.SingleColumnValueFilter;
+import org.apache.hadoop.hbase.util.Bytes;
 
 /**
  * Created by mikel (m.emaldi at deusto dot es) on 18/06/14.
  */
 public class GenerateAlignments {
+
+    static String[] STRING_DISTANCES =  {
+            "subStringDistance",
+            "equalDistance",
+            "levenshteinDistance",
+            "smoaDistance",
+    };
+
+    static String[] JWNL_DISTANCES = {
+            "basicSynonymDistance"
+    };
+
     public static void run() {
         Logger logger = Logger.getLogger(GenerateAlignments.class.getName());
         Configuration conf = HBaseConfiguration.create();
-        HTable table = null;
+        HTable alignmentTable = null;
+        HTable subgraphTable = null;
         try {
             logger.info("Connecting to table...");
-            table = new HTable(conf, "alignments");
+            alignmentTable = new HTable(conf, "alignments");
         } catch (IOException e) {
             logger.info("Table not found! Creating new table...");
             HBaseAdmin hbase = null;
@@ -31,11 +54,88 @@ public class GenerateAlignments {
                 HColumnDescriptor meta = new HColumnDescriptor("cf".getBytes());
                 desc.addFamily(meta);
                 hbase.createTable(desc);
-                table = new HTable(conf, "alignments");
+                alignmentTable = new HTable(conf, "alignments");
             } catch (IOException e1) {
                 e1.printStackTrace();
             }
         }
-        
+        try {
+            subgraphTable = new HTable(conf, "subgraphs");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        logger.info("Aligning vertices...");
+
+        List<Filter> filterList = new ArrayList<>();
+        SingleColumnValueFilter filter = new SingleColumnValueFilter(Bytes.toBytes("cf"), Bytes.toBytes("type"), CompareFilter.CompareOp.EQUAL, Bytes.toBytes("vertex"));
+        filter.setFilterIfMissing(true);
+        filterList.add(filter);
+        FilterList fl = new FilterList(FilterList.Operator.MUST_PASS_ALL, filterList);
+        Scan scan = new Scan();
+        scan.setFilter(fl);
+        Set<String> vertexSet = new HashSet<>();
+        try {
+            ResultScanner scanner = subgraphTable.getScanner(scan);
+            Result result;
+            while ((result = scanner.next()) != null) {
+                String label = getLocalName(Bytes.toString(result.getValue(Bytes.toBytes("cf"), Bytes.toBytes("label"))));
+                vertexSet.add(label);
+            }
+            Generator<List<String>> labelPermutations = Itertools.permutations(Itertools.iter(vertexSet.iterator()), 2);
+            List<String> pair;
+            Class<StringDistances> stringDistancesClass = StringDistances.class;
+            JWNLDistances jwnlDistances = new JWNLDistances();
+
+            try {
+                while ((pair = labelPermutations.next()) != null) {
+                    for (String strDistance : STRING_DISTANCES) {
+                        Method method = stringDistancesClass.getMethod(strDistance);
+                        double distance = (double) method.invoke(pair.get(0), pair.get(1));
+                        Put put = new Put(Bytes.toBytes(UUID.randomUUID().toString()));
+                        put.add(Bytes.toBytes("cf"), Bytes.toBytes("source"), Bytes.toBytes(pair.get(0)));
+                        put.add(Bytes.toBytes("cf"), Bytes.toBytes("target"), Bytes.toBytes(pair.get(1)));
+                        put.add(Bytes.toBytes("cf"), Bytes.toBytes("distance"), Bytes.toBytes(strDistance));
+                        put.add(Bytes.toBytes("cf"), Bytes.toBytes("value"), Bytes.toBytes(distance));
+                        alignmentTable.put(put);
+                    }
+                    for (String jwnlDistance : JWNL_DISTANCES) {
+                        Method method = jwnlDistance.getClass().getMethod(jwnlDistance);
+                        double distance = (double) method.invoke(pair.get(0), pair.get(1));
+                        Put put = new Put(Bytes.toBytes(UUID.randomUUID().toString()));
+                        put.add(Bytes.toBytes("cf"), Bytes.toBytes("source"), Bytes.toBytes(pair.get(0)));
+                        put.add(Bytes.toBytes("cf"), Bytes.toBytes("target"), Bytes.toBytes(pair.get(1)));
+                        put.add(Bytes.toBytes("cf"), Bytes.toBytes("distance"), Bytes.toBytes(jwnlDistance));
+                        put.add(Bytes.toBytes("cf"), Bytes.toBytes("value"), Bytes.toBytes(distance));
+                        alignmentTable.put(put);
+                    }
+
+                }
+            } catch (NoSuchElementException e) {
+                // Well, permutations.next() do not return null when the last element is reached.
+            } catch (NoSuchMethodException e) {
+                e.printStackTrace();
+            } catch (InvocationTargetException e) {
+                e.printStackTrace();
+            } catch (IllegalAccessException e) {
+                e.printStackTrace();
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+    }
+
+    private static String getLocalName(String URI) {
+        if (URI.contains("#")) {
+            return URI.split("#")[1];
+        } else {
+            String[] sURI = URI.split("/");
+            String result = "";
+            for (int i = 0; i < sURI.length - 1; i++) {
+                result += sURI[i] + "/";
+            }
+            return result;
+        }
     }
 }

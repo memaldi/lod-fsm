@@ -78,5 +78,6 @@ public class LoadSubgraphs {
         } catch (IOException e) {
             e.printStackTrace();
         }
+        logger.info("Done!");
     }
 }
