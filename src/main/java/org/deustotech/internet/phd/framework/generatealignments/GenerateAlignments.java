@@ -91,6 +91,7 @@ public class GenerateAlignments {
 
             try {
                 while ((pair = labelPermutations.next()) != null) {
+                    double accum = 0.0;
                     for (String strDistance : STRING_DISTANCES) {
                         Method method = stringDistancesClass.getMethod(strDistance);
                         double distance = (double) method.invoke(pair.get(0), pair.get(1));
@@ -100,6 +101,7 @@ public class GenerateAlignments {
                         put.add(Bytes.toBytes("cf"), Bytes.toBytes("distance"), Bytes.toBytes(strDistance));
                         put.add(Bytes.toBytes("cf"), Bytes.toBytes("value"), Bytes.toBytes(distance));
                         alignmentTable.put(put);
+                        accum += distance;
                     }
                     for (String jwnlDistance : JWNL_DISTANCES) {
                         Method method = jwnlDistances.getClass().getMethod(jwnlDistance);
@@ -110,8 +112,14 @@ public class GenerateAlignments {
                         put.add(Bytes.toBytes("cf"), Bytes.toBytes("distance"), Bytes.toBytes(jwnlDistance));
                         put.add(Bytes.toBytes("cf"), Bytes.toBytes("value"), Bytes.toBytes(distance));
                         alignmentTable.put(put);
+                        accum += distance;
                     }
-
+                    Put put = new Put(Bytes.toBytes(UUID.randomUUID().toString()));
+                    double geometricMean = accum / (STRING_DISTANCES.length + JWNL_DISTANCES.length);
+                    put.add(Bytes.toBytes("cf"), Bytes.toBytes("source"), Bytes.toBytes(pair.get(0)));
+                    put.add(Bytes.toBytes("cf"), Bytes.toBytes("target"), Bytes.toBytes(pair.get(1)));
+                    put.add(Bytes.toBytes("cf"), Bytes.toBytes("distance"), Bytes.toBytes("geometricMean"));
+                    put.add(Bytes.toBytes("cf"), Bytes.toBytes("value"), Bytes.toBytes(geometricMean));
                 }
             } catch (NoSuchElementException e) {
                 // Well, permutations.next() do not return null when the last element is reached.
