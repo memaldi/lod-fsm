@@ -82,6 +82,8 @@ public class GenerateAlignments {
                 String label = getLocalName(Bytes.toString(result.getValue(Bytes.toBytes("cf"), Bytes.toBytes("label"))));
                 vertexSet.add(label);
             }
+            scanner.close();
+
             Generator<List<String>> labelPermutations = Itertools.permutations(Itertools.iter(vertexSet.iterator()), 2);
             List<String> pair;
             Class<StringDistances> stringDistancesClass = StringDistances.class;
@@ -100,7 +102,7 @@ public class GenerateAlignments {
                         alignmentTable.put(put);
                     }
                     for (String jwnlDistance : JWNL_DISTANCES) {
-                        Method method = jwnlDistance.getClass().getMethod(jwnlDistance);
+                        Method method = jwnlDistances.getClass().getMethod(jwnlDistance);
                         double distance = (double) method.invoke(pair.get(0), pair.get(1));
                         Put put = new Put(Bytes.toBytes(UUID.randomUUID().toString()));
                         put.add(Bytes.toBytes("cf"), Bytes.toBytes("source"), Bytes.toBytes(pair.get(0)));
@@ -120,6 +122,13 @@ public class GenerateAlignments {
             } catch (IllegalAccessException e) {
                 e.printStackTrace();
             }
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        try {
+            alignmentTable.close();
+            subgraphTable.close();
         } catch (IOException e) {
             e.printStackTrace();
         }
