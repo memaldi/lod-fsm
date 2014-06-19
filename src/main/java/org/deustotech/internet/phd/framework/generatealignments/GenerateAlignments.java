@@ -79,7 +79,7 @@ public class GenerateAlignments {
             ResultScanner scanner = subgraphTable.getScanner(scan);
             Result result;
             while ((result = scanner.next()) != null) {
-                String label = getLocalName(Bytes.toString(result.getValue(Bytes.toBytes("cf"), Bytes.toBytes("label"))));
+                String label = Bytes.toString(result.getValue(Bytes.toBytes("cf"), Bytes.toBytes("label")));
                 vertexSet.add(label);
             }
             scanner.close();
@@ -91,35 +91,37 @@ public class GenerateAlignments {
 
             try {
                 while ((pair = labelPermutations.next()) != null) {
-                    double accum = 0.0;
-                    for (String strDistance : STRING_DISTANCES) {
-                        Method method = stringDistancesClass.getMethod(strDistance);
-                        double distance = (double) method.invoke(pair.get(0), pair.get(1));
+                    if (!getNamespace(pair.get(0)).equals(getNamespace(pair.get(1)))) {
+                        double accum = 0.0;
+                        for (String strDistance : STRING_DISTANCES) {
+                            Method method = stringDistancesClass.getMethod(strDistance);
+                            double distance = (double) method.invoke(getLocalName(pair.get(0)), getLocalName(pair.get(1)));
+                            Put put = new Put(Bytes.toBytes(UUID.randomUUID().toString()));
+                            put.add(Bytes.toBytes("cf"), Bytes.toBytes("source"), Bytes.toBytes(pair.get(0)));
+                            put.add(Bytes.toBytes("cf"), Bytes.toBytes("target"), Bytes.toBytes(pair.get(1)));
+                            put.add(Bytes.toBytes("cf"), Bytes.toBytes("distance"), Bytes.toBytes(strDistance));
+                            put.add(Bytes.toBytes("cf"), Bytes.toBytes("value"), Bytes.toBytes(distance));
+                            alignmentTable.put(put);
+                            accum += distance;
+                        }
+                        for (String jwnlDistance : JWNL_DISTANCES) {
+                            Method method = jwnlDistances.getClass().getMethod(jwnlDistance);
+                            double distance = (double) method.invoke(getLocalName(pair.get(0)), getLocalName(pair.get(1)));
+                            Put put = new Put(Bytes.toBytes(UUID.randomUUID().toString()));
+                            put.add(Bytes.toBytes("cf"), Bytes.toBytes("source"), Bytes.toBytes(pair.get(0)));
+                            put.add(Bytes.toBytes("cf"), Bytes.toBytes("target"), Bytes.toBytes(pair.get(1)));
+                            put.add(Bytes.toBytes("cf"), Bytes.toBytes("distance"), Bytes.toBytes(jwnlDistance));
+                            put.add(Bytes.toBytes("cf"), Bytes.toBytes("value"), Bytes.toBytes(distance));
+                            alignmentTable.put(put);
+                            accum += distance;
+                        }
                         Put put = new Put(Bytes.toBytes(UUID.randomUUID().toString()));
+                        double geometricMean = accum / (STRING_DISTANCES.length + JWNL_DISTANCES.length);
                         put.add(Bytes.toBytes("cf"), Bytes.toBytes("source"), Bytes.toBytes(pair.get(0)));
                         put.add(Bytes.toBytes("cf"), Bytes.toBytes("target"), Bytes.toBytes(pair.get(1)));
-                        put.add(Bytes.toBytes("cf"), Bytes.toBytes("distance"), Bytes.toBytes(strDistance));
-                        put.add(Bytes.toBytes("cf"), Bytes.toBytes("value"), Bytes.toBytes(distance));
-                        alignmentTable.put(put);
-                        accum += distance;
+                        put.add(Bytes.toBytes("cf"), Bytes.toBytes("distance"), Bytes.toBytes("geometricMean"));
+                        put.add(Bytes.toBytes("cf"), Bytes.toBytes("value"), Bytes.toBytes(geometricMean));
                     }
-                    for (String jwnlDistance : JWNL_DISTANCES) {
-                        Method method = jwnlDistances.getClass().getMethod(jwnlDistance);
-                        double distance = (double) method.invoke(pair.get(0), pair.get(1));
-                        Put put = new Put(Bytes.toBytes(UUID.randomUUID().toString()));
-                        put.add(Bytes.toBytes("cf"), Bytes.toBytes("source"), Bytes.toBytes(pair.get(0)));
-                        put.add(Bytes.toBytes("cf"), Bytes.toBytes("target"), Bytes.toBytes(pair.get(1)));
-                        put.add(Bytes.toBytes("cf"), Bytes.toBytes("distance"), Bytes.toBytes(jwnlDistance));
-                        put.add(Bytes.toBytes("cf"), Bytes.toBytes("value"), Bytes.toBytes(distance));
-                        alignmentTable.put(put);
-                        accum += distance;
-                    }
-                    Put put = new Put(Bytes.toBytes(UUID.randomUUID().toString()));
-                    double geometricMean = accum / (STRING_DISTANCES.length + JWNL_DISTANCES.length);
-                    put.add(Bytes.toBytes("cf"), Bytes.toBytes("source"), Bytes.toBytes(pair.get(0)));
-                    put.add(Bytes.toBytes("cf"), Bytes.toBytes("target"), Bytes.toBytes(pair.get(1)));
-                    put.add(Bytes.toBytes("cf"), Bytes.toBytes("distance"), Bytes.toBytes("geometricMean"));
-                    put.add(Bytes.toBytes("cf"), Bytes.toBytes("value"), Bytes.toBytes(geometricMean));
                 }
             } catch (NoSuchElementException e) {
                 // Well, permutations.next() do not return null when the last element is reached.
@@ -143,9 +145,9 @@ public class GenerateAlignments {
 
     }
 
-    private static String getLocalName(String URI) {
+    private static String getNamespace(String URI) {
         if (URI.contains("#")) {
-            return URI.split("#")[1];
+            return URI.split("#")[0];
         } else {
             String[] sURI = URI.split("/");
             String result = "";
@@ -153,6 +155,15 @@ public class GenerateAlignments {
                 result += sURI[i] + "/";
             }
             return result;
+        }
+    }
+
+    private static String getLocalName(String URI) {
+        if (URI.contains("#")) {
+            return URI.split("#")[1];
+        } else {
+            String[] sURI = URI.split("/");
+            return sURI[sURI.length-2];
         }
     }
 }
