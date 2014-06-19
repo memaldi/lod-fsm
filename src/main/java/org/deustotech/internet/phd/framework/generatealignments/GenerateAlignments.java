@@ -96,14 +96,18 @@ public class GenerateAlignments {
             List<String> pair;
             Class<StringDistances> stringDistancesClass = StringDistances.class;
             JWNLDistances jwnlDistances = new JWNLDistances();
-
+            jwnlDistances.Initialize();
+            Class[] cArg = new Class[2];
+            cArg[0] = String.class;
+            cArg[1] = String.class;
             try {
                 while ((pair = labelPermutations.next()) != null) {
                     if (!getNamespace(pair.get(0)).equals(getNamespace(pair.get(1)))) {
                         double accum = 0.0;
+
                         for (String strDistance : STRING_DISTANCES) {
-                            Method method = stringDistancesClass.getMethod(strDistance);
-                            double distance = (double) method.invoke(getLocalName(pair.get(0)), getLocalName(pair.get(1)));
+                            Method method = stringDistancesClass.getMethod(strDistance, cArg);
+                            double distance = (double) method.invoke(stringDistancesClass, getLocalName(pair.get(0)), getLocalName(pair.get(1)));
                             Put put = new Put(Bytes.toBytes(UUID.randomUUID().toString()));
                             put.add(Bytes.toBytes("cf"), Bytes.toBytes("source"), Bytes.toBytes(pair.get(0)));
                             put.add(Bytes.toBytes("cf"), Bytes.toBytes("target"), Bytes.toBytes(pair.get(1)));
@@ -113,8 +117,8 @@ public class GenerateAlignments {
                             accum += distance;
                         }
                         for (String jwnlDistance : JWNL_DISTANCES) {
-                            Method method = jwnlDistances.getClass().getMethod(jwnlDistance);
-                            double distance = (double) method.invoke(getLocalName(pair.get(0)), getLocalName(pair.get(1)));
+                            Method method = jwnlDistances.getClass().getMethod(jwnlDistance, cArg);
+                            double distance = (double) method.invoke(jwnlDistances, getLocalName(pair.get(0)), getLocalName(pair.get(1)));
                             Put put = new Put(Bytes.toBytes(UUID.randomUUID().toString()));
                             put.add(Bytes.toBytes("cf"), Bytes.toBytes("source"), Bytes.toBytes(pair.get(0)));
                             put.add(Bytes.toBytes("cf"), Bytes.toBytes("target"), Bytes.toBytes(pair.get(1)));
