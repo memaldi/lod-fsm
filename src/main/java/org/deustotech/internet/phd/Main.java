@@ -1,5 +1,6 @@
 package org.deustotech.internet.phd;
 
+import org.deustotech.internet.phd.framework.loadsubgraphs.LoadSubgraphs;
 import org.deustotech.internet.phd.framework.rdf2subdue.RDF2Subdue;
 
 import static java.lang.System.exit;
@@ -19,13 +20,20 @@ public class Main {
             exit(1);
         }
 
-        switch (args[0]) {
+        switch (args[0].toLowerCase()) {
             case "rdf2subdue":
                 if (args.length < 3) {
                     System.out.println("Invalid number of parameters!");
                     exit(1);
                 }
                 RDF2Subdue.run(args[1], args[2]);
+                break;
+            case "loadsubgraphs":
+                if (args.length < 2) {
+                    System.out.println("Invalid number of parameters!");
+                    exit(1);
+                }
+                LoadSubgraphs.run(args[1]);
                 break;
         }
     }

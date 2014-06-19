@@ -7,8 +7,8 @@
     <version>1.0-SNAPSHOT</version>
     <properties>
         <launch>rdf2subdue</launch>
-        <args.1>dataset</args.1>
-        <args.2>output</args.2>
+        <args.1>null</args.1>
+        <args.2>null</args.2>
     </properties>
 
     <build>

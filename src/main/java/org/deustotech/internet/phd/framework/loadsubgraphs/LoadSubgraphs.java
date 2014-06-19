@@ -23,21 +23,20 @@ public class LoadSubgraphs {
         Configuration conf = HBaseConfiguration.create();
         HTable table = null;
         try {
-            logger.info("Connecting to table...");
+            logger.info("Creating table \"subgraphs\"...");
+            HBaseAdmin hbase = null;
+            hbase = new HBaseAdmin(conf);
+            HTableDescriptor desc = new HTableDescriptor("subgraphs");
+            HColumnDescriptor meta = new HColumnDescriptor("cf".getBytes());
+            desc.addFamily(meta);
+            hbase.createTable(desc);
+        } catch (IOException e) {
+            logger.info("Table \"subgraphs\" already exists!");
+        }
+        try {
             table = new HTable(conf, "subgraphs");
         } catch (IOException e) {
-            logger.info("Table not found! Creating new table...");
-            HBaseAdmin hbase = null;
-            try {
-                hbase = new HBaseAdmin(conf);
-                HTableDescriptor desc = new HTableDescriptor("subgraphs");
-                HColumnDescriptor meta = new HColumnDescriptor("cf".getBytes());
-                desc.addFamily(meta);
-                hbase.createTable(desc);
-                table = new HTable(conf, "subgraphs");
-            } catch (IOException e1) {
-                e1.printStackTrace();
-            }
+            e.printStackTrace();
         }
 
         for(File file : folder.listFiles()) {
