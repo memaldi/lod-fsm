@@ -1,5 +1,6 @@
 package org.deustotech.internet.phd;
 
+import org.deustotech.internet.phd.framework.generatealignments.GenerateAlignments;
 import org.deustotech.internet.phd.framework.loadsubgraphs.LoadSubgraphs;
 import org.deustotech.internet.phd.framework.rdf2subdue.RDF2Subdue;
 
@@ -34,6 +35,9 @@ public class Main {
                     exit(1);
                 }
                 LoadSubgraphs.run(args[1]);
+                break;
+            case "generatealignments":
+                GenerateAlignments.run();
                 break;
         }
     }

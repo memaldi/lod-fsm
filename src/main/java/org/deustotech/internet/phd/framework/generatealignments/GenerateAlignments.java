@@ -42,33 +42,41 @@ public class GenerateAlignments {
         Configuration conf = HBaseConfiguration.create();
         HTable alignmentTable = null;
         HTable subgraphTable = null;
+        logger.info("Creating table \"alignments\"...");
+        HBaseAdmin hbase = null;
         try {
-            logger.info("Connecting to table...");
-            alignmentTable = new HTable(conf, "alignments");
+            hbase = new HBaseAdmin(conf);
+            HTableDescriptor desc = new HTableDescriptor("alignments");
+            HColumnDescriptor meta = new HColumnDescriptor("cf".getBytes());
+            desc.addFamily(meta);
+            hbase.createTable(desc);
         } catch (IOException e) {
-            logger.info("Table not found! Creating new table...");
-            HBaseAdmin hbase = null;
-            try {
-                hbase = new HBaseAdmin(conf);
-                HTableDescriptor desc = new HTableDescriptor("alignments");
-                HColumnDescriptor meta = new HColumnDescriptor("cf".getBytes());
-                desc.addFamily(meta);
-                hbase.createTable(desc);
-                alignmentTable = new HTable(conf, "alignments");
-            } catch (IOException e1) {
-                e1.printStackTrace();
-            }
+            logger.info("Table \"alignments\" already exists!");
         }
         try {
             subgraphTable = new HTable(conf, "subgraphs");
+            alignmentTable = new HTable(conf, "alignments");
         } catch (IOException e) {
             e.printStackTrace();
         }
 
         logger.info("Aligning vertices...");
+        generateSimilarities(alignmentTable, subgraphTable, "vertex");
+        logger.info("Aligning edges...");
+        generateSimilarities(alignmentTable, subgraphTable, "edges");
+        logger.info("Done!");
+        try {
+            alignmentTable.close();
+            subgraphTable.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
 
+    }
+
+    private static void generateSimilarities(HTable alignmentTable, HTable subgraphTable, String type) {
         List<Filter> filterList = new ArrayList<>();
-        SingleColumnValueFilter filter = new SingleColumnValueFilter(Bytes.toBytes("cf"), Bytes.toBytes("type"), CompareFilter.CompareOp.EQUAL, Bytes.toBytes("vertex"));
+        SingleColumnValueFilter filter = new SingleColumnValueFilter(Bytes.toBytes("cf"), Bytes.toBytes("type"), CompareFilter.CompareOp.EQUAL, Bytes.toBytes(type));
         filter.setFilterIfMissing(true);
         filterList.add(filter);
         FilterList fl = new FilterList(FilterList.Operator.MUST_PASS_ALL, filterList);
@@ -80,7 +88,7 @@ public class GenerateAlignments {
             Result result;
             while ((result = scanner.next()) != null) {
                 String label = Bytes.toString(result.getValue(Bytes.toBytes("cf"), Bytes.toBytes("label")));
-                vertexSet.add(label);
+                vertexSet.add(label.replace("<", "").replace(">", ""));
             }
             scanner.close();
 
@@ -136,13 +144,6 @@ public class GenerateAlignments {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        try {
-            alignmentTable.close();
-            subgraphTable.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
     }
 
     private static String getNamespace(String URI) {
