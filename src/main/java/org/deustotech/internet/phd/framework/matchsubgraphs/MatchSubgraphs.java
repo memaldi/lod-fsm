@@ -1,5 +1,7 @@
 package org.deustotech.internet.phd.framework.matchsubgraphs;
 
+import net.ericaro.neoitertools.Generator;
+import net.ericaro.neoitertools.Itertools;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.client.HTable;
@@ -11,12 +13,10 @@ import org.apache.hadoop.hbase.filter.Filter;
 import org.apache.hadoop.hbase.filter.FilterList;
 import org.apache.hadoop.hbase.filter.SingleColumnValueFilter;
 import org.apache.hadoop.hbase.util.Bytes;
+import org.apache.hadoop.yarn.state.Graph;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 /**
  * Created by mikel (m.emaldi at deusto dot es) on 20/06/14.
@@ -49,6 +49,15 @@ public class MatchSubgraphs {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        System.out.println(graphSet);
+        Generator<List<String>> graphPermutations = Itertools.permutations(Itertools.iter(graphSet.iterator()), 2);
+        boolean end = false;
+        while(!end) {
+            try {
+                List<String> pair = graphPermutations.next();
+                
+            } catch (NoSuchElementException e) {
+                end = true;
+            }
+        }
     }
 }
