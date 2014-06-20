@@ -2,6 +2,7 @@ package org.deustotech.internet.phd;
 
 import org.deustotech.internet.phd.framework.generatealignments.GenerateAlignments;
 import org.deustotech.internet.phd.framework.loadsubgraphs.LoadSubgraphs;
+import org.deustotech.internet.phd.framework.matchsubgraphs.MatchSubgraphs;
 import org.deustotech.internet.phd.framework.rdf2subdue.RDF2Subdue;
 import org.deustotech.internet.phd.validation.TestDistances;
 
@@ -42,6 +43,9 @@ public class Main {
                 break;
             case "testdistances":
                 TestDistances.run(args[1]);
+                break;
+            case "matchsubgraphs":
+                MatchSubgraphs.run();
                 break;
         }
     }
