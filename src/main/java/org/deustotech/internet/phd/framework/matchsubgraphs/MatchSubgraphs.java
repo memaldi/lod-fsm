@@ -13,7 +13,7 @@ import org.apache.hadoop.hbase.filter.Filter;
 import org.apache.hadoop.hbase.filter.FilterList;
 import org.apache.hadoop.hbase.filter.SingleColumnValueFilter;
 import org.apache.hadoop.hbase.util.Bytes;
-import org.apache.hadoop.yarn.state.Graph;
+import org.deustotech.internet.phd.framework.model.Graph;
 
 import java.io.IOException;
 import java.util.*;
@@ -46,18 +46,50 @@ public class MatchSubgraphs {
                 String graph = Bytes.toString(result.getValue(Bytes.toBytes("cf"), Bytes.toBytes("graph")));
                 graphSet.add(graph);
             }
+            scanner.close();
         } catch (IOException e) {
             e.printStackTrace();
         }
+
         Generator<List<String>> graphPermutations = Itertools.permutations(Itertools.iter(graphSet.iterator()), 2);
         boolean end = false;
         while(!end) {
             try {
                 List<String> pair = graphPermutations.next();
-                
+                Graph sourceGraph = getGraph(pair.get(0), htable);
+
             } catch (NoSuchElementException e) {
                 end = true;
             }
         }
+        try {
+            htable.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static Graph getGraph(String graphName, HTable table) {
+        List<Filter> filterList = new ArrayList<>();
+        SingleColumnValueFilter graphFilter = new SingleColumnValueFilter(Bytes.toBytes("cf"), Bytes.toBytes("graph"), CompareFilter.CompareOp.EQUAL, Bytes.toBytes(graphName));
+        SingleColumnValueFilter vertexFilter = new SingleColumnValueFilter(Bytes.toBytes("cf"), Bytes.toBytes("type"), CompareFilter.CompareOp.EQUAL, Bytes.toBytes("vertex"));
+        filterList.add(graphFilter);
+        filterList.add(vertexFilter);
+        FilterList fl = new FilterList(FilterList.Operator.MUST_PASS_ALL, filterList);
+        Scan scan = new Scan();
+        scan.setFilter(fl);
+        Graph graph = new Graph();
+        try {
+            ResultScanner scanner = table.getScanner(scan);
+            Result result;
+            while((result = scanner.next()) != null) {
+                long id = Bytes.toLong(result.getValue(Bytes.toBytes("cf"), Bytes.toBytes("id")));
+                String label = Bytes.toString(result.getValue(Bytes.toBytes("cf"), Bytes.toBytes("label")));
+                
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 }

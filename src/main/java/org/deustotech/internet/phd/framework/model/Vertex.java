@@ -8,7 +8,7 @@ import java.util.List;
  */
 public class Vertex {
     private String label;
-    private int id;
+    private long id;
     private List<Edge> edges;
 
     public Vertex() {
@@ -23,11 +23,11 @@ public class Vertex {
         this.label = label;
     }
 
-    public int getId() {
+    public long getId() {
         return id;
     }
 
-    public void setId(int id) {
+    public void setId(long id) {
         this.id = id;
     }
 
