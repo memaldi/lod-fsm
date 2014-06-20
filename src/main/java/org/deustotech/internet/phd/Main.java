@@ -41,7 +41,7 @@ public class Main {
                 GenerateAlignments.run(args[1], args[2]);
                 break;
             case "testdistances":
-                TestDistances.run();
+                TestDistances.run(args[1]);
                 break;
         }
     }

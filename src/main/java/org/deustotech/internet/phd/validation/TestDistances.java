@@ -9,7 +9,11 @@ import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.filter.*;
 import org.apache.hadoop.hbase.util.Bytes;
 
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.text.DecimalFormat;
 import java.util.*;
 import java.util.logging.Logger;
 
@@ -18,8 +22,7 @@ import java.util.logging.Logger;
  * This class tests the agreement between different distances.
  */
 public class TestDistances {
-    public static void run() {
-        Logger logger = Logger.getLogger(TestDistances.class.getName());
+    public static void run(String output) {
         Configuration conf = HBaseConfiguration.create();
         HTable hTable = null;
         try {
@@ -98,9 +101,26 @@ public class TestDistances {
             kMap.put(threshold, k);
         }
 
-        for (double threshold : kMap.keySet()) {
-            System.out.println(String.format("Agreement for %s threshold: %s", threshold, kMap.get(threshold)));
+        File outputFile = new File(output);
+        try {
+            FileWriter fileWriter = new FileWriter(outputFile.getAbsoluteFile());
+            BufferedWriter bw = new BufferedWriter(fileWriter);
+
+
+            DecimalFormat df = new DecimalFormat("#.#");
+            DecimalFormat resultFormat = new DecimalFormat("#.##");
+            for (double threshold : kMap.keySet()) {
+                System.out.println(String.format("Agreement for %s threshold: %s", df.format(threshold), resultFormat.format(kMap.get(threshold))));
+                bw.write(String.format("%s;%s\n", df.format(threshold), resultFormat.format(kMap.get(threshold))));
+            }
+            bw.close();
+            fileWriter.close();
+
+        } catch (IOException e) {
+            e.printStackTrace();
         }
+
+
 
     }
 }
