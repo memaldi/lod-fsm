@@ -63,7 +63,7 @@ public class GenerateAlignments {
         logger.info("Aligning vertices...");
         generateSimilarities(alignmentTable, subgraphTable, "vertex", wordnetDir, wordnetVersion);
         logger.info("Aligning edges...");
-        generateSimilarities(alignmentTable, subgraphTable, "edges", wordnetDir, wordnetVersion);
+        generateSimilarities(alignmentTable, subgraphTable, "edge", wordnetDir, wordnetVersion);
         logger.info("Done!");
         try {
             alignmentTable.close();
