@@ -69,7 +69,7 @@ public class TestDistances {
             e.printStackTrace();
         }
         int raters = 5;
-        Map<Double, Double> kMap = new HashMap<>();
+        Map<Double, Double> kMap = new TreeMap<>();
         for (double threshold : scoreMap.keySet()) {
             float P = 0;
             int trueRate = 0;
@@ -102,6 +102,7 @@ public class TestDistances {
         }
 
         File outputFile = new File(output);
+
         try {
             FileWriter fileWriter = new FileWriter(outputFile.getAbsoluteFile());
             BufferedWriter bw = new BufferedWriter(fileWriter);
