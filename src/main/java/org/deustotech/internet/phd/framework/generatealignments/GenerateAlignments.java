@@ -37,7 +37,7 @@ public class GenerateAlignments {
             "basicSynonymDistance"
     };
 
-    public static void run() {
+    public static void run(String wordnetDir, String wordnetVersion) {
         Logger logger = Logger.getLogger(GenerateAlignments.class.getName());
         Configuration conf = HBaseConfiguration.create();
         HTable alignmentTable = null;
@@ -61,9 +61,9 @@ public class GenerateAlignments {
         }
 
         logger.info("Aligning vertices...");
-        generateSimilarities(alignmentTable, subgraphTable, "vertex");
+        generateSimilarities(alignmentTable, subgraphTable, "vertex", wordnetDir, wordnetVersion);
         logger.info("Aligning edges...");
-        generateSimilarities(alignmentTable, subgraphTable, "edges");
+        generateSimilarities(alignmentTable, subgraphTable, "edges", wordnetDir, wordnetVersion);
         logger.info("Done!");
         try {
             alignmentTable.close();
@@ -74,7 +74,7 @@ public class GenerateAlignments {
 
     }
 
-    private static void generateSimilarities(HTable alignmentTable, HTable subgraphTable, String type) {
+    private static void generateSimilarities(HTable alignmentTable, HTable subgraphTable, String type, String wordnetDir, String wordnetVersion) {
         List<Filter> filterList = new ArrayList<>();
         SingleColumnValueFilter filter = new SingleColumnValueFilter(Bytes.toBytes("cf"), Bytes.toBytes("type"), CompareFilter.CompareOp.EQUAL, Bytes.toBytes(type));
         filter.setFilterIfMissing(true);
@@ -96,7 +96,7 @@ public class GenerateAlignments {
             List<String> pair;
             Class<StringDistances> stringDistancesClass = StringDistances.class;
             JWNLDistances jwnlDistances = new JWNLDistances();
-            jwnlDistances.Initialize();
+            jwnlDistances.Initialize(wordnetDir, wordnetVersion);
             Class[] cArg = new Class[2];
             cArg[0] = String.class;
             cArg[1] = String.class;
@@ -168,7 +168,11 @@ public class GenerateAlignments {
             return URI.split("#")[1];
         } else {
             String[] sURI = URI.split("/");
-            return sURI[sURI.length-2];
+            if (sURI.length >= 3) {
+                return sURI[sURI.length - 2];
+            } else {
+                return URI;
+            }
         }
     }
 }

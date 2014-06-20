@@ -37,7 +37,7 @@ public class Main {
                 LoadSubgraphs.run(args[1]);
                 break;
             case "generatealignments":
-                GenerateAlignments.run();
+                GenerateAlignments.run(args[1], args[2]);
                 break;
         }
     }
