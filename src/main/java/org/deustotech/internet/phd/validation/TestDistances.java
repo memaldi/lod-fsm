@@ -41,7 +41,7 @@ public class TestDistances {
             Result result;
             while((result = scanner.next()) != null) {
                 String distance = Bytes.toString(result.getValue(Bytes.toBytes("cf"), Bytes.toBytes("distance")));
-                double value = Bytes.toDouble(result.getValue(Bytes.toBytes("cf"), Bytes.toBytes("value")));
+                double value = 1 - Bytes.toDouble(result.getValue(Bytes.toBytes("cf"), Bytes.toBytes("value")));
                 String source = Bytes.toString(result.getValue(Bytes.toBytes("cf"), Bytes.toBytes("source")));
                 String target = Bytes.toString(result.getValue(Bytes.toBytes("cf"), Bytes.toBytes("target")));
 
@@ -69,28 +69,31 @@ public class TestDistances {
         Map<Double, Double> kMap = new HashMap<>();
         for (double threshold : scoreMap.keySet()) {
             float P = 0;
-            int trueRate = 1;
-            int falseRate = 1;
+            int trueRate = 0;
+            int falseRate = 0;
             for(String pair : scoreMap.get(threshold).keySet()) {
                 Map<String, Boolean> map = scoreMap.get(threshold).get(pair);
-                int accum = 0;
+                int accumTrue = 0;
+                int accumFalse = 0;
                 for (String distance : map.keySet()) {
                     if (map.get(distance)) {
-                        accum += 1;
+                        accumTrue += 1;
                         trueRate += 1;
                     } else {
                         falseRate += 1;
+                        accumFalse += 1;
                     }
                 }
-                double localP = 1 / raters * (raters - 1) * (Math.pow(accum, 2) - raters);
+
+                double localP = (1.0 / (raters * (raters - 1))) * (Math.pow(accumTrue, 2) + Math.pow(accumFalse, 2) - raters);
                 P += localP;
 
             }
-            float Ptrue = trueRate / (trueRate + falseRate);
-            float Pfalse = falseRate / (trueRate + falseRate);
+            float Ptrue = (float) trueRate / (trueRate + falseRate);
+            float Pfalse = (float) falseRate / (trueRate + falseRate);
             double Pe = Math.pow(Ptrue, 2) + Math.pow(Pfalse, 2);
 
-            P = 1 / scoreMap.get(threshold).keySet().size() * P;
+            P = (float) ((1.0 / scoreMap.get(threshold).keySet().size()) * P);
             double k = (P - Pe) / (1 - Pe);
             kMap.put(threshold, k);
         }

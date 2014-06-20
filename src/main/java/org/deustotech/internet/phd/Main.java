@@ -3,6 +3,7 @@ package org.deustotech.internet.phd;
 import org.deustotech.internet.phd.framework.generatealignments.GenerateAlignments;
 import org.deustotech.internet.phd.framework.loadsubgraphs.LoadSubgraphs;
 import org.deustotech.internet.phd.framework.rdf2subdue.RDF2Subdue;
+import org.deustotech.internet.phd.validation.TestDistances;
 
 import static java.lang.System.exit;
 
@@ -38,6 +39,9 @@ public class Main {
                 break;
             case "generatealignments":
                 GenerateAlignments.run(args[1], args[2]);
+                break;
+            case "testdistances":
+                TestDistances.run();
                 break;
         }
     }
