@@ -107,7 +107,7 @@ public class MatchSubgraphs {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        return 0;
+        return -1;
     }
 
     private static String writeGraph(Graph graph) {
@@ -116,10 +116,15 @@ public class MatchSubgraphs {
             File file = File.createTempFile(fileName, ".g");
             file.deleteOnExit();
             BufferedWriter bw = new BufferedWriter(new FileWriter(file));
+            TreeMap<Long, Vertex> vertexTreeMap = new TreeMap<>();
             for (Vertex vertex : graph.getVertices()) {
-                bw.write(String.format("v %s %s\n", vertex.getId(), vertex.getLabel()));
+                vertexTreeMap.put(vertex.getId(), vertex);
+            }
+            for (long id : vertexTreeMap.keySet()) {
+                bw.write(String.format("v %s %s\n", vertexTreeMap.get(id).getId(), vertexTreeMap.get(id).getLabel()));
             }
             bw.flush();
+
             for (Vertex vertex: graph.getVertices()) {
                 for (Edge edge : vertex.getEdges()) {
                     bw.write(String.format("d %s %s %s\n", vertex.getId(), edge.getTarget().getId(), edge.getLabel()));
