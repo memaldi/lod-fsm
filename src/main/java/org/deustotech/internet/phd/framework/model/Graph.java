@@ -30,7 +30,7 @@ public class Graph {
         this.vertices = vertices;
     }
 
-    public Vertex getVertex(int vertexId) {
+    public Vertex getVertex(long vertexId) {
         for (Vertex vertex : this.vertices) {
             if (vertex.getId() == vertexId) {
                 return vertex;
@@ -45,5 +45,21 @@ public class Graph {
             edgeList.addAll(vertex.getEdges());
         }
         return edgeList;
+    }
+
+    public void addVertex(Vertex vertex) {
+        this.vertices.add(vertex);
+    }
+
+    public void updateVertex(Vertex vertex) {
+        Vertex remove = new Vertex();
+        for (Vertex orig : this.vertices) {
+            if (orig.getId() == vertex.getId()) {
+                remove = orig;
+                break;
+            }
+        }
+        this.vertices.remove(remove);
+        this.vertices.add(vertex);
     }
 }

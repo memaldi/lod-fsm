@@ -15,6 +15,11 @@ public class Vertex {
         this.edges = new ArrayList<>();
     }
 
+    public Vertex(String label, long id) {
+        this.label = label;
+        this.id = id;
+    }
+
     public String getLabel() {
         return label;
     }
@@ -37,5 +42,9 @@ public class Vertex {
 
     public void setEdges(List<Edge> edges) {
         this.edges = edges;
+    }
+
+    public void addEdge(Edge edge) {
+        this.edges.add(edge);
     }
 }

@@ -14,6 +14,11 @@ public class Edge {
         return label;
     }
 
+    public Edge(String label, Vertex target) {
+        this.label = label;
+        this.target = target;
+    }
+
     public void setLabel(String label) {
         this.label = label;
     }
