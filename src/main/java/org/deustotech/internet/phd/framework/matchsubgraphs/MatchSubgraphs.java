@@ -79,22 +79,85 @@ public class MatchSubgraphs {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        Graph matchedSourceGraph = new Graph(sourceGraph.getName());
-        Graph matchedTargetGraph = new Graph(targetGraph.getName());
 
         Set<String> labelSet = new HashSet<>();
-
+        Set<String> edgeSet = new HashSet<>();
         for (Vertex vertex : sourceGraph.getVertices()) {
             labelSet.add(vertex.getLabel());
+            for (Edge edge : vertex.getEdges()) {
+                edgeSet.add(edge.getLabel());
+            }
         }
         for (Vertex vertex : targetGraph.getVertices()) {
             labelSet.add(vertex.getLabel());
+            for (Edge edge : vertex.getEdges()) {
+                edgeSet.add(edge.getLabel());
+            }
         }
 
         Generator<List<String>> vertexPermutations = Itertools.permutations(Itertools.iter(labelSet.iterator()), 2);
+        Generator<List<String>> edgePermutations = Itertools.permutations(Itertools.iter(edgeSet.iterator()), 2);
 
         Map<String, Map<String, Double>> scoreMap = new HashMap<>();
+        scoreMap.putAll(getScores(table, vertexPermutations));
+        scoreMap.putAll(getScores(table, edgePermutations));
 
+        System.out.println(scoreMap);
+
+        Map<String, String> replaceMap = new HashMap<>();
+
+        for (String label : scoreMap.keySet()) {
+            Map<String, Double> map = scoreMap.get(label);
+            double maxScore = 0;
+            String maxLabel = "";
+            for (String key : map.keySet()) {
+                if (map.get(key) > maxScore) {
+                    maxScore = map.get(key);
+                    maxLabel = key;
+                }
+            }
+            if (1 - maxScore > similarityThreshold) {
+                String uuid = UUID.randomUUID().toString();
+                replaceMap.put(label, uuid);
+                replaceMap.put(maxLabel, uuid);
+            }
+        }
+        Graph matchedSourceGraph = getMatchedGraph(sourceGraph, replaceMap);
+        Graph matchedTargetGraph = getMatchedGraph(sourceGraph, replaceMap);
+
+        return null;
+    }
+
+    private static Graph getMatchedGraph(Graph graph, Map<String, String> replaceMap) {
+        Graph matchedGraph = new Graph(graph.getName());
+        for (Vertex vertex : graph.getVertices()) {
+            long id = vertex.getId();
+            String label = vertex.getLabel();
+            if (replaceMap.containsKey(label)) {
+                label = replaceMap.get(label);
+            }
+            Vertex newVertex = new Vertex(label, id);
+            matchedGraph.addVertex(newVertex);
+        }
+
+        for (Vertex vertex : graph.getVertices()) {
+            for (Edge edge : vertex.getEdges()) {
+                Vertex matchedSourceVertex = matchedGraph.getVertex(vertex.getId());
+                Vertex matchedTargetVertex = matchedGraph.getVertex(edge.getTarget().getId());
+                String label = edge.getLabel();
+                if (replaceMap.containsKey(label)) {
+                    label = replaceMap.get(label);
+                }
+                Edge matchedEdge = new Edge(label, matchedTargetVertex);
+                matchedSourceVertex.addEdge(matchedEdge);
+                matchedGraph.updateVertex(matchedSourceVertex);
+            }
+        }
+        return matchedGraph;
+    }
+
+    private static Map<String, Map<String, Double>> getScores(HTable table, Generator<List<String>> vertexPermutations) {
+        Map<String, Map<String, Double>> scoreMap = new HashMap<>();
         boolean end = false;
         while(!end) {
             try {
@@ -129,8 +192,7 @@ public class MatchSubgraphs {
                 end = true;
             }
         }
-        System.out.println(scoreMap);
-        return null;
+        return scoreMap;
     }
 
     private static Graph getGraph(String graphName, HTable table) {
