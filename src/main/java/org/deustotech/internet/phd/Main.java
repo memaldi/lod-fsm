@@ -39,13 +39,17 @@ public class Main {
                 LoadSubgraphs.run(args[1]);
                 break;
             case "generatealignments":
+                if (args.length < 3) {
+                    System.out.println("Invalid number of parameters!");
+                    exit(1);
+                }
                 GenerateAlignments.run(args[1], args[2]);
                 break;
             case "testdistances":
                 TestDistances.run(args[1]);
                 break;
             case "matchsubgraphs":
-                MatchSubgraphs.run();
+                MatchSubgraphs.run(Double.parseDouble(args[1]));
                 break;
         }
     }

@@ -51,7 +51,7 @@ public class LoadSubgraphs {
                         Put put = new Put(Bytes.toBytes(UUID.randomUUID().toString()));
                         put.add(Bytes.toBytes("cf"), Bytes.toBytes("type"), Bytes.toBytes("vertex"));
                         put.add(Bytes.toBytes("cf"), Bytes.toBytes("id"), Bytes.toBytes(Long.parseLong(sline[1])));
-                        put.add(Bytes.toBytes("cf"), Bytes.toBytes("label"), Bytes.toBytes(sline[2]));
+                        put.add(Bytes.toBytes("cf"), Bytes.toBytes("label"), Bytes.toBytes(sline[2].replace("<", "").replace(">", "")));
                         put.add(Bytes.toBytes("cf"), Bytes.toBytes("graph"), Bytes.toBytes(file.getName()));
                         table.put(put);
                     } else if (line.startsWith("d")) {
@@ -61,7 +61,7 @@ public class LoadSubgraphs {
                         put.add(Bytes.toBytes("cf"), Bytes.toBytes("type"), Bytes.toBytes("edge"));
                         put.add(Bytes.toBytes("cf"), Bytes.toBytes("source"), Bytes.toBytes(Long.parseLong(sline[1])));
                         put.add(Bytes.toBytes("cf"), Bytes.toBytes("target"), Bytes.toBytes(Long.parseLong(sline[2])));
-                        put.add(Bytes.toBytes("cf"), Bytes.toBytes("label"), Bytes.toBytes(sline[3]));
+                        put.add(Bytes.toBytes("cf"), Bytes.toBytes("label"), Bytes.toBytes(sline[3].replace("<", "").replace(">", "")));
                         put.add(Bytes.toBytes("cf"), Bytes.toBytes("graph"), Bytes.toBytes(file.getName()));
                         table.put(put);
                     }

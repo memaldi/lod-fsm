@@ -133,6 +133,7 @@ public class GenerateAlignments {
                         put.add(Bytes.toBytes("cf"), Bytes.toBytes("target"), Bytes.toBytes(pair.get(1)));
                         put.add(Bytes.toBytes("cf"), Bytes.toBytes("distance"), Bytes.toBytes("geometricMean"));
                         put.add(Bytes.toBytes("cf"), Bytes.toBytes("value"), Bytes.toBytes(geometricMean));
+                        alignmentTable.put(put);
                     }
                 }
             } catch (NoSuchElementException e) {
