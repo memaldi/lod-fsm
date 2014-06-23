@@ -18,6 +18,7 @@ public class Vertex {
     public Vertex(String label, long id) {
         this.label = label;
         this.id = id;
+        this.edges = new ArrayList<>();
     }
 
     public String getLabel() {

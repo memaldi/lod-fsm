@@ -14,6 +14,11 @@ public class Graph {
         this.vertices = new ArrayList<>();
     }
 
+    public Graph(String name) {
+        this.name = name;
+        this.vertices = new ArrayList<>();
+    }
+
     public String getName() {
         return name;
     }
