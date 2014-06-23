@@ -17,14 +17,14 @@ import org.deustotech.internet.phd.framework.model.Edge;
 import org.deustotech.internet.phd.framework.model.Graph;
 import org.deustotech.internet.phd.framework.model.Vertex;
 
-import java.io.IOException;
+import java.io.*;
 import java.util.*;
 
 /**
  * Created by mikel (m.emaldi at deusto dot es) on 20/06/14.
  */
 public class MatchSubgraphs {
-    public static void run(double similarityThreshold) {
+    public static void run(double similarityThreshold, String subduePath) {
         Configuration conf = HBaseConfiguration.create();
         HTable htable = null;
         try {
@@ -58,9 +58,18 @@ public class MatchSubgraphs {
         while(!end) {
             try {
                 List<String> pair = graphPermutations.next();
-                Graph sourceGraph = getGraph(pair.get(0), htable);
-                Graph targetGraph = getGraph(pair.get(1), htable);
-                List<Graph> matchedGraphs = matchGraphs(sourceGraph, targetGraph, conf, similarityThreshold);
+                if (!pair.get(0).equals(pair.get(1))) {
+                    Graph sourceGraph = getGraph(pair.get(0), htable);
+                    Graph targetGraph = getGraph(pair.get(1), htable);
+                    List<Graph> matchedGraphs = matchGraphs(sourceGraph, targetGraph, conf, similarityThreshold);
+                    Graph sourceMatchedGraph = matchedGraphs.get(0);
+                    Graph targetMatchedGraph = matchedGraphs.get(1);
+
+                    double distance = getDistance(sourceMatchedGraph, targetMatchedGraph, subduePath);
+                    int maxLength = Math.max(sourceMatchedGraph.getVertices().size() + sourceMatchedGraph.getEdges().size(), targetMatchedGraph.getVertices().size() + targetMatchedGraph.getEdges().size());
+                    double absoluteDistance =  distance / (double) maxLength;
+                    System.out.println(String.format("%s - %s (%f)", sourceGraph.getName(), targetGraph.getName(), absoluteDistance));
+                }
             } catch (NoSuchElementException e) {
                 end = true;
             }
@@ -70,6 +79,59 @@ public class MatchSubgraphs {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    private static double getDistance(Graph sourceMatchedGraph, Graph targetMatchedGraph, String subduePath) {
+        String sourcePath = writeGraph(sourceMatchedGraph);
+        String targetPath = writeGraph(targetMatchedGraph);
+        double distance = callSubdue(sourcePath, targetPath, subduePath);
+        return distance;
+    }
+
+    private static double callSubdue(String sourcePath, String targetPath, String subduePath) {
+        try {
+            Process process = new ProcessBuilder(String.format("%s/bin/gm", subduePath), sourcePath, targetPath).start();
+            InputStream is = process.getInputStream();
+            //InputStream is = process.getErrorStream();
+            InputStreamReader isr = new InputStreamReader(is);
+            BufferedReader br = new BufferedReader(isr);
+            String line;
+            double value = 0;
+            while ((line = br.readLine()) != null) {
+                if (line.startsWith("Match Cost")) {
+                    value = Double.parseDouble(line.split(" ")[3]);
+                }
+            }
+
+            return value;
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return 0;
+    }
+
+    private static String writeGraph(Graph graph) {
+        try {
+            String fileName = UUID.randomUUID().toString();
+            File file = File.createTempFile(fileName, ".g");
+            file.deleteOnExit();
+            BufferedWriter bw = new BufferedWriter(new FileWriter(file));
+            for (Vertex vertex : graph.getVertices()) {
+                bw.write(String.format("v %s %s\n", vertex.getId(), vertex.getLabel()));
+            }
+            bw.flush();
+            for (Vertex vertex: graph.getVertices()) {
+                for (Edge edge : vertex.getEdges()) {
+                    bw.write(String.format("d %s %s %s\n", vertex.getId(), edge.getTarget().getId(), edge.getLabel()));
+                }
+            }
+            bw.close();
+
+            return file.getAbsolutePath();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 
     private static List<Graph> matchGraphs(Graph sourceGraph, Graph targetGraph, Configuration conf, double similarityThreshold) {
@@ -123,9 +185,13 @@ public class MatchSubgraphs {
             }
         }
         Graph matchedSourceGraph = getMatchedGraph(sourceGraph, replaceMap);
-        Graph matchedTargetGraph = getMatchedGraph(sourceGraph, replaceMap);
+        Graph matchedTargetGraph = getMatchedGraph(targetGraph, replaceMap);
 
-        return null;
+        List<Graph> result = new ArrayList<>();
+        result.add(matchedSourceGraph);
+        result.add(matchedTargetGraph);
+
+        return result;
     }
 
     private static Graph getMatchedGraph(Graph graph, Map<String, String> replaceMap) {
