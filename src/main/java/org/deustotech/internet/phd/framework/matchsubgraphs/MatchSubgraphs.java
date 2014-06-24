@@ -54,9 +54,9 @@ public class MatchSubgraphs {
         }
 
         // Debug
-        // graphSet = new HashSet<>();
-        // graphSet.add("hedatuz.g");
-        // graphSet.add("risk.g");
+        graphSet = new HashSet<>();
+        graphSet.add("hedatuz.g");
+        graphSet.add("risk.g");
         // Debug end
 
         Generator<List<String>> graphPermutations = Itertools.combinations(Itertools.iter(graphSet.iterator()), 2);
@@ -197,7 +197,7 @@ public class MatchSubgraphs {
                     maxLabel = key;
                 }
             }
-            if (maxScore > similarityThreshold) {
+            if (1 - maxScore > similarityThreshold) {
                 String uuid = UUID.randomUUID().toString();
                 replaceMap.put(label, uuid);
                 replaceMap.put(maxLabel, uuid);

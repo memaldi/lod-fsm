@@ -170,7 +170,7 @@ public class GenerateAlignments {
         } else {
             String[] sURI = URI.split("/");
             if (sURI.length >= 3) {
-                return sURI[sURI.length - 2];
+                return sURI[sURI.length - 1];
             } else {
                 return URI;
             }
