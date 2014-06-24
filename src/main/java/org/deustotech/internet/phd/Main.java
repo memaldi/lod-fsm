@@ -49,7 +49,7 @@ public class Main {
                 TestDistances.run(args[1]);
                 break;
             case "matchsubgraphs":
-                MatchSubgraphs.run(Double.parseDouble(args[1]), args[2]);
+                MatchSubgraphs.run(Double.parseDouble(args[1]), args[2], Boolean.parseBoolean(args[3]));
                 break;
         }
     }

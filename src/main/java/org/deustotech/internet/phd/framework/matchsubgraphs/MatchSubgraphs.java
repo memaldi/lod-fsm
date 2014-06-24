@@ -24,7 +24,7 @@ import java.util.*;
  * Created by mikel (m.emaldi at deusto dot es) on 20/06/14.
  */
 public class MatchSubgraphs {
-    public static void run(double similarityThreshold, String subduePath) {
+    public static void run(double similarityThreshold, String subduePath, boolean applyStringDistances) {
         Configuration conf = HBaseConfiguration.create();
         HTable htable = null;
         try {
@@ -67,7 +67,7 @@ public class MatchSubgraphs {
                 if (!pair.get(0).equals(pair.get(1))) {
                     Graph sourceGraph = getGraph(pair.get(0), htable);
                     Graph targetGraph = getGraph(pair.get(1), htable);
-                    List<Graph> matchedGraphs = matchGraphs(sourceGraph, targetGraph, conf, similarityThreshold);
+                    List<Graph> matchedGraphs = matchGraphs(sourceGraph, targetGraph, conf, applyStringDistances, similarityThreshold);
                     Graph sourceMatchedGraph = matchedGraphs.get(0);
                     Graph targetMatchedGraph = matchedGraphs.get(1);
 
@@ -150,67 +150,79 @@ public class MatchSubgraphs {
         return null;
     }
 
-    private static List<Graph> matchGraphs(Graph sourceGraph, Graph targetGraph, Configuration conf, double similarityThreshold) {
-        HTable table = null;
-        try {
-            table = new HTable(conf, "alignments");
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
-        Set<String> labelSet = new HashSet<>();
-        Set<String> edgeSet = new HashSet<>();
-        for (Vertex vertex : sourceGraph.getVertices()) {
-            labelSet.add(vertex.getLabel());
-            for (Edge edge : vertex.getEdges()) {
-                edgeSet.add(edge.getLabel());
+    private static List<Graph> matchGraphs(Graph sourceGraph, Graph targetGraph, Configuration conf, boolean applyStringDistances, double similarityThreshold) {
+        Graph matchedSourceGraph;
+        Graph matchedTargetGraph;
+        if (applyStringDistances) {
+            HTable table = null;
+            try {
+                table = new HTable(conf, "alignments");
+            } catch (IOException e) {
+                e.printStackTrace();
             }
-        }
-        for (Vertex vertex : targetGraph.getVertices()) {
-            labelSet.add(vertex.getLabel());
-            for (Edge edge : vertex.getEdges()) {
-                edgeSet.add(edge.getLabel());
-            }
-        }
 
-        Map<String, Map<String, Double>> distanceMap = new HashMap<>();
-        Generator<List<String>> vertexPermutations;
-        if (labelSet.size() >= 2) {
-            vertexPermutations = Itertools.permutations(Itertools.iter(labelSet.iterator()), 2);
-            distanceMap.putAll(getDistance(table, vertexPermutations));
-        }
-        Generator<List<String>> edgePermutations;
-        if (edgeSet.size() >= 2) {
-            edgePermutations = Itertools.permutations(Itertools.iter(edgeSet.iterator()), 2);
-            distanceMap.putAll(getDistance(table, edgePermutations));
-        }
-
-        Map<String, String> replaceMap = new HashMap<>();
-
-        for (String label : distanceMap.keySet()) {
-            Map<String, Double> map = distanceMap.get(label);
-            double minDistance = 2;
-            String minLabel = "";
-            for (String key : map.keySet()) {
-                if (map.get(key) < minDistance) {
-                    minDistance = map.get(key);
-                    minLabel = key;
+            Set<String> labelSet = new HashSet<>();
+            Set<String> edgeSet = new HashSet<>();
+            for (Vertex vertex : sourceGraph.getVertices()) {
+                labelSet.add(vertex.getLabel());
+                for (Edge edge : vertex.getEdges()) {
+                    edgeSet.add(edge.getLabel());
                 }
             }
-            if (1 - minDistance > similarityThreshold) {
-                String uuid = UUID.randomUUID().toString();
-                replaceMap.put(label, uuid);
-                replaceMap.put(minLabel, uuid);
+            for (Vertex vertex : targetGraph.getVertices()) {
+                labelSet.add(vertex.getLabel());
+                for (Edge edge : vertex.getEdges()) {
+                    edgeSet.add(edge.getLabel());
+                }
             }
+
+            Map<String, Map<String, Double>> distanceMap = new HashMap<>();
+            Generator<List<String>> vertexPermutations;
+            if (labelSet.size() >= 2) {
+                vertexPermutations = Itertools.permutations(Itertools.iter(labelSet.iterator()), 2);
+                distanceMap.putAll(getDistance(table, vertexPermutations));
+            }
+            Generator<List<String>> edgePermutations;
+            if (edgeSet.size() >= 2) {
+                edgePermutations = Itertools.permutations(Itertools.iter(edgeSet.iterator()), 2);
+                distanceMap.putAll(getDistance(table, edgePermutations));
+            }
+
+            Map<String, String> replaceMap = new HashMap<>();
+
+            for (String label : distanceMap.keySet()) {
+                Map<String, Double> map = distanceMap.get(label);
+                double minDistance = 2;
+                String minLabel = "";
+                for (String key : map.keySet()) {
+                    if (map.get(key) < minDistance) {
+                        minDistance = map.get(key);
+                        minLabel = key;
+                    }
+                }
+                if (1 - minDistance > similarityThreshold) {
+                    String uuid = UUID.randomUUID().toString();
+                    replaceMap.put(label, uuid);
+                    replaceMap.put(minLabel, uuid);
+                }
+            }
+            matchedSourceGraph = getMatchedGraph(sourceGraph, replaceMap);
+            matchedTargetGraph = getMatchedGraph(targetGraph, replaceMap);
+
+            List<Graph> result = new ArrayList<>();
+            result.add(matchedSourceGraph);
+            result.add(matchedTargetGraph);
+
+            return result;
+        } else {
+            List<Graph> result = new ArrayList<>();
+            result.add(sourceGraph);
+            result.add(targetGraph);
+
+            return  result;
         }
-        Graph matchedSourceGraph = getMatchedGraph(sourceGraph, replaceMap);
-        Graph matchedTargetGraph = getMatchedGraph(targetGraph, replaceMap);
 
-        List<Graph> result = new ArrayList<>();
-        result.add(matchedSourceGraph);
-        result.add(matchedTargetGraph);
 
-        return result;
     }
 
     private static Graph getMatchedGraph(Graph graph, Map<String, String> replaceMap) {
