@@ -54,9 +54,9 @@ public class MatchSubgraphs {
         }
 
         // Debug
-        graphSet = new HashSet<>();
-        graphSet.add("hedatuz.g");
-        graphSet.add("risk.g");
+        // graphSet = new HashSet<>();
+        // graphSet.add("hedatuz.g");
+        // graphSet.add("risk.g");
         // Debug end
 
         Generator<List<String>> graphPermutations = Itertools.combinations(Itertools.iter(graphSet.iterator()), 2);
@@ -173,34 +173,34 @@ public class MatchSubgraphs {
             }
         }
 
-        Map<String, Map<String, Double>> scoreMap = new HashMap<>();
+        Map<String, Map<String, Double>> distanceMap = new HashMap<>();
         Generator<List<String>> vertexPermutations;
         if (labelSet.size() >= 2) {
             vertexPermutations = Itertools.permutations(Itertools.iter(labelSet.iterator()), 2);
-            scoreMap.putAll(getScores(table, vertexPermutations));
+            distanceMap.putAll(getDistance(table, vertexPermutations));
         }
         Generator<List<String>> edgePermutations;
         if (edgeSet.size() >= 2) {
             edgePermutations = Itertools.permutations(Itertools.iter(edgeSet.iterator()), 2);
-            scoreMap.putAll(getScores(table, edgePermutations));
+            distanceMap.putAll(getDistance(table, edgePermutations));
         }
 
         Map<String, String> replaceMap = new HashMap<>();
 
-        for (String label : scoreMap.keySet()) {
-            Map<String, Double> map = scoreMap.get(label);
-            double maxScore = 0;
-            String maxLabel = "";
+        for (String label : distanceMap.keySet()) {
+            Map<String, Double> map = distanceMap.get(label);
+            double minDistance = 2;
+            String minLabel = "";
             for (String key : map.keySet()) {
-                if (map.get(key) > maxScore) {
-                    maxScore = map.get(key);
-                    maxLabel = key;
+                if (map.get(key) < minDistance) {
+                    minDistance = map.get(key);
+                    minLabel = key;
                 }
             }
-            if (1 - maxScore > similarityThreshold) {
+            if (1 - minDistance > similarityThreshold) {
                 String uuid = UUID.randomUUID().toString();
                 replaceMap.put(label, uuid);
-                replaceMap.put(maxLabel, uuid);
+                replaceMap.put(minLabel, uuid);
             }
         }
         Graph matchedSourceGraph = getMatchedGraph(sourceGraph, replaceMap);
@@ -241,8 +241,8 @@ public class MatchSubgraphs {
         return matchedGraph;
     }
 
-    private static Map<String, Map<String, Double>> getScores(HTable table, Generator<List<String>> vertexPermutations) {
-        Map<String, Map<String, Double>> scoreMap = new HashMap<>();
+    private static Map<String, Map<String, Double>> getDistance(HTable table, Generator<List<String>> vertexPermutations) {
+        Map<String, Map<String, Double>> distanceMap = new HashMap<>();
         boolean end = false;
         while(!end) {
             try {
@@ -263,12 +263,12 @@ public class MatchSubgraphs {
                     Result result;
                     while((result = scanner.next()) != null) {
                         double value = Bytes.toDouble(result.getValue(Bytes.toBytes("cf"), Bytes.toBytes("value")));
-                        if (!scoreMap.containsKey(pair.get(0))) {
-                            scoreMap.put(pair.get(0), new HashMap<String, Double>());
+                        if (!distanceMap.containsKey(pair.get(0))) {
+                            distanceMap.put(pair.get(0), new HashMap<String, Double>());
                         }
-                        Map<String, Double> map = scoreMap.get(pair.get(0));
+                        Map<String, Double> map = distanceMap.get(pair.get(0));
                         map.put(pair.get(1), value);
-                        scoreMap.put(pair.get(0), map);
+                        distanceMap.put(pair.get(0), map);
                     }
                 } catch (IOException e) {
                     e.printStackTrace();
@@ -277,7 +277,7 @@ public class MatchSubgraphs {
                 end = true;
             }
         }
-        return scoreMap;
+        return distanceMap;
     }
 
     private static Graph getGraph(String graphName, HTable table) {
