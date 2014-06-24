@@ -53,7 +53,13 @@ public class MatchSubgraphs {
             e.printStackTrace();
         }
 
-        Generator<List<String>> graphPermutations = Itertools.permutations(Itertools.iter(graphSet.iterator()), 2);
+        // Debug
+        // graphSet = new HashSet<>();
+        // graphSet.add("hedatuz.g");
+        // graphSet.add("risk.g");
+        // Debug end
+
+        Generator<List<String>> graphPermutations = Itertools.combinations(Itertools.iter(graphSet.iterator()), 2);
         boolean end = false;
         while(!end) {
             try {
@@ -66,9 +72,14 @@ public class MatchSubgraphs {
                     Graph targetMatchedGraph = matchedGraphs.get(1);
 
                     double distance = getDistance(sourceMatchedGraph, targetMatchedGraph, subduePath);
-                    int maxLength = Math.max(sourceMatchedGraph.getVertices().size() + sourceMatchedGraph.getEdges().size(), targetMatchedGraph.getVertices().size() + targetMatchedGraph.getEdges().size());
-                    double absoluteDistance =  distance / (double) maxLength;
-                    System.out.println(String.format("%s - %s (%f)", sourceGraph.getName(), targetGraph.getName(), absoluteDistance));
+                    double maxLength = Math.max(sourceMatchedGraph.getVertices().size() + sourceMatchedGraph.getEdges().size(), targetMatchedGraph.getVertices().size() + targetMatchedGraph.getEdges().size());
+                    // TODO: check this!
+                    if (distance > maxLength) {
+                        maxLength = distance;
+                    }
+                    double absoluteDistance =  distance / maxLength;
+                    double similarity = 1 - absoluteDistance;
+                    System.out.println(String.format("%s - %s (%f)", sourceGraph.getName(), targetGraph.getName(), similarity));
                 }
             } catch (NoSuchElementException e) {
                 end = true;
@@ -162,14 +173,17 @@ public class MatchSubgraphs {
             }
         }
 
-        Generator<List<String>> vertexPermutations = Itertools.permutations(Itertools.iter(labelSet.iterator()), 2);
-        Generator<List<String>> edgePermutations = Itertools.permutations(Itertools.iter(edgeSet.iterator()), 2);
-
         Map<String, Map<String, Double>> scoreMap = new HashMap<>();
-        scoreMap.putAll(getScores(table, vertexPermutations));
-        scoreMap.putAll(getScores(table, edgePermutations));
-
-        System.out.println(scoreMap);
+        Generator<List<String>> vertexPermutations;
+        if (labelSet.size() >= 2) {
+            vertexPermutations = Itertools.permutations(Itertools.iter(labelSet.iterator()), 2);
+            scoreMap.putAll(getScores(table, vertexPermutations));
+        }
+        Generator<List<String>> edgePermutations;
+        if (edgeSet.size() >= 2) {
+            edgePermutations = Itertools.permutations(Itertools.iter(edgeSet.iterator()), 2);
+            scoreMap.putAll(getScores(table, edgePermutations));
+        }
 
         Map<String, String> replaceMap = new HashMap<>();
 
@@ -183,7 +197,7 @@ public class MatchSubgraphs {
                     maxLabel = key;
                 }
             }
-            if (1 - maxScore > similarityThreshold) {
+            if (maxScore > similarityThreshold) {
                 String uuid = UUID.randomUUID().toString();
                 replaceMap.put(label, uuid);
                 replaceMap.put(maxLabel, uuid);
