@@ -59,6 +59,8 @@ public class MatchSubgraphs {
         // graphSet.add("risk.g");
         // Debug end
 
+        Map<String, Map<String, Double>> similarityMap = new HashMap<>();
+
         Generator<List<String>> graphPermutations = Itertools.combinations(Itertools.iter(graphSet.iterator()), 2);
         boolean end = false;
         while(!end) {
@@ -79,7 +81,16 @@ public class MatchSubgraphs {
                     }
                     double absoluteDistance =  distance / maxLength;
                     double similarity = 1 - absoluteDistance;
+
                     System.out.println(String.format("%s - %s (%f)", sourceGraph.getName(), targetGraph.getName(), similarity));
+
+                    if (!similarityMap.containsKey(sourceGraph.getName())) {
+                        similarityMap.put(sourceGraph.getName(), new HashMap<String, Double>());
+                    }
+                    Map<String, Double> map = similarityMap.get(sourceGraph.getName());
+                    map.put(targetGraph.getName(), similarity);
+                    similarityMap.put(sourceGraph.getName(), map);
+
                 }
             } catch (NoSuchElementException e) {
                 end = true;
