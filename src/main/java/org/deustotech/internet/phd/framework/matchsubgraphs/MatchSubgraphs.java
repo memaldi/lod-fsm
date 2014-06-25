@@ -13,9 +13,12 @@ import org.apache.hadoop.hbase.filter.Filter;
 import org.apache.hadoop.hbase.filter.FilterList;
 import org.apache.hadoop.hbase.filter.SingleColumnValueFilter;
 import org.apache.hadoop.hbase.util.Bytes;
+import org.deustotech.internet.phd.framework.model.Dataset;
 import org.deustotech.internet.phd.framework.model.Edge;
 import org.deustotech.internet.phd.framework.model.Graph;
 import org.deustotech.internet.phd.framework.model.Vertex;
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 import java.io.*;
 import java.util.*;
@@ -54,9 +57,9 @@ public class MatchSubgraphs {
         }
 
         // Debug
-        // graphSet = new HashSet<>();
-        // graphSet.add("hedatuz.g");
-        // graphSet.add("risk.g");
+        graphSet = new HashSet<>();
+        graphSet.add("hedatuz.g");
+        graphSet.add("risk.g");
         // Debug end
 
         Map<String, Map<String, Double>> similarityMap = new HashMap<>();
@@ -96,11 +99,93 @@ public class MatchSubgraphs {
                 end = true;
             }
         }
+        Map<Integer, Map<Integer, String>> goldStandard = loadGoldStandard();
+
+
         try {
             htable.close();
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    private static Map<Integer, Map<Integer, String>> loadGoldStandard() {
+        // Load gold standard
+        Map<Integer, Dataset> datasetMap = new HashMap<>();
+        Map<Integer, Map<Integer, Map<String, Integer>>> ratingMap = new HashMap<>();
+        File jsonFile = new File("/home/mikel/doctorado/src/java/baselines/all.json");
+        try {
+            BufferedReader br = new BufferedReader(new FileReader(jsonFile));
+            String jsonString = "";
+            String line;
+            while((line = br.readLine()) != null) {
+                jsonString += line;
+            }
+            JSONArray jsonArray = new JSONArray(jsonString);
+            for (int i = 0; i < jsonArray.length(); i++) {
+                JSONObject jsonObject = jsonArray.getJSONObject(i);
+                String model = jsonObject.getString("model");
+                switch (model) {
+                    case "survey.dataset":
+                        Dataset dataset = new Dataset(jsonObject.getJSONObject("fields").getString("datahub_url"), "", jsonObject.getInt("pk"));
+                        datasetMap.put((Integer) jsonObject.get("pk"), dataset);
+                        break;
+                    case "survey.similarity":
+                        int sourceDataset = jsonObject.getJSONObject("fields").getInt("source_dataset");
+                        int targetDataset = jsonObject.getJSONObject("fields").getInt("target_dataset");
+                        String similarity = jsonObject.getJSONObject("fields").getString("similarity");
+                        if (!ratingMap.containsKey(sourceDataset)) {
+                            ratingMap.put(sourceDataset, new HashMap<Integer, Map<String, Integer>>());
+                        }
+                        Map<Integer, Map<String, Integer>> targetMap = ratingMap.get(sourceDataset);
+
+                        if (!targetMap.containsKey(targetDataset)) {
+                            Map<String, Integer> pairRatingMap = new HashMap<>();
+                            pairRatingMap.put("yes", 0);
+                            pairRatingMap.put("no", 0);
+                            pairRatingMap.put("undefined", 0);
+                            targetMap.put(targetDataset, pairRatingMap);
+                        }
+                        Map<String, Integer> pairRatingMap = targetMap.get(targetDataset);
+                        pairRatingMap.put(similarity, pairRatingMap.get(similarity) + 1);
+
+                        targetMap.put(targetDataset, pairRatingMap);
+                        ratingMap.put(sourceDataset, targetMap);
+                    default:
+                        break;
+                }
+            }
+            Map<Integer, Map<Integer, String>> filteredRatingMap = new HashMap<>();
+            for (int sourceDataset : ratingMap.keySet()) {
+                Map<Integer, Map<String, Integer>> targetMap = ratingMap.get(sourceDataset);
+                for (int targetDataset : targetMap.keySet()) {
+                    Map<String, Integer> pairRatingMap = targetMap.get(targetDataset);
+                    int total = 0;
+                    int maxRatingValue = 0;
+                    String maxRating = null;
+                    for (String rating : pairRatingMap.keySet()) {
+                        total += pairRatingMap.get(rating);
+                        if (pairRatingMap.get(rating) > maxRatingValue) {
+                            maxRatingValue = pairRatingMap.get(rating);
+                            maxRating = rating;
+                        }
+                    }
+                    if (total >= 3 && maxRatingValue >= 2) {
+                        if (!filteredRatingMap.containsKey(sourceDataset)) {
+                            filteredRatingMap.put(sourceDataset, new HashMap<Integer, String>());
+                        }
+                        Map<Integer, String> filteredTargetMap = filteredRatingMap.get(sourceDataset);
+                        filteredTargetMap.put(targetDataset, maxRating);
+                    }
+                }
+            }
+            return filteredRatingMap;
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 
     private static double getDistance(Graph sourceMatchedGraph, Graph targetMatchedGraph, String subduePath) {
