@@ -17,6 +17,7 @@ import org.apache.hadoop.hbase.filter.FilterList;
 import org.apache.hadoop.hbase.filter.SingleColumnValueFilter;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.http.client.utils.URIBuilder;
+import redis.clients.jedis.Jedis;
 import virtuoso.jena.driver.VirtGraph;
 import virtuoso.jena.driver.VirtuosoQueryExecution;
 import virtuoso.jena.driver.VirtuosoQueryExecutionFactory;
@@ -186,8 +187,14 @@ public class RDF2Subdue {
             e.printStackTrace();
         }
 
+        long offset = 0;
+        Jedis jedis = new Jedis("localhost");
+        if(jedis.exists(String.format("rdf2subdue:%s:offset", dataset))) {
+            offset = Long.parseLong(jedis.get((String.format("rdf2subdue:%s:offset", dataset))));
+        }
+
         VirtGraph graph = new VirtGraph("http://" + dataset, connectionURL.toString(), prop.getProperty("virtuoso_user"), prop.getProperty("virtuoso_password"));
-        Query query = QueryFactory.create("SELECT DISTINCT ?s ?p ?o ?class WHERE { ?s ?p ?o OPTIONAL { ?o a ?class } }");
+        Query query = QueryFactory.create("SELECT DISTINCT ?s ?p ?o ?class WHERE { ?s ?p ?o OPTIONAL { ?o a ?class } } ORDER BY ?s OFFSET " + offset);
         VirtuosoQueryExecution vqe = VirtuosoQueryExecutionFactory.create(query, graph);
         ResultSet results = vqe.execSelect();
         logger.info("Generating vertices and edges ids...");
@@ -322,8 +329,8 @@ public class RDF2Subdue {
 
                 id++;
             }
-
-
+            offset++;
+            jedis.set(String.format("rdf2subdue:%s:offset", dataset), String.valueOf(offset));
         }
         try {
             table.close();
