@@ -15,8 +15,29 @@ public class Dataset {
         this.url = url;
         this.name = name;
         this.pk = pk;
-
     }
 
+    public int getPk() {
+        return pk;
+    }
 
+    public void setPk(int pk) {
+        this.pk = pk;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public String getUrl() {
+        return url;
+    }
+
+    public void setUrl(String url) {
+        this.url = url;
+    }
 }

@@ -27,7 +27,7 @@ import java.util.*;
  * Created by mikel (m.emaldi at deusto dot es) on 20/06/14.
  */
 public class MatchSubgraphs {
-    public static void run(double similarityThreshold, String subduePath, boolean applyStringDistances) {
+    public static void run(double similarityThreshold, String subduePath, boolean applyStringDistances, String surveyDatasetsLocation) {
         Configuration conf = HBaseConfiguration.create();
         HTable htable = null;
         try {
@@ -64,7 +64,7 @@ public class MatchSubgraphs {
 
         Map<String, Map<String, Double>> similarityMap = new HashMap<>();
 
-        Generator<List<String>> graphPermutations = Itertools.combinations(Itertools.iter(graphSet.iterator()), 2);
+        Generator<List<String>> graphPermutations = Itertools.permutations(Itertools.iter(graphSet.iterator()), 2);
         boolean end = false;
         while(!end) {
             try {
@@ -99,8 +99,37 @@ public class MatchSubgraphs {
                 end = true;
             }
         }
-        Map<Integer, Map<Integer, String>> goldStandard = loadGoldStandard();
+        Map<Integer, Dataset> datasets = getDatasets(surveyDatasetsLocation);
+        Map<Integer, Map<Integer, String>> goldStandard = loadGoldStandard(surveyDatasetsLocation);
+        Map<String, Integer> name2keyMap = getKeyFromName(datasets);
 
+        int tp = 0;
+        int fp = 0;
+        int tn = 0;
+        int fn = 0;
+
+        for (double i = 0; i < 1; i += 0.1 ) {
+            for (String source : similarityMap.keySet()) {
+                int sourceKey = name2keyMap.get(source);
+                for (String target : similarityMap.keySet()) {
+                    if (!source.equals(target)) {
+                        int targetKey = name2keyMap.get(target);
+                        String value = goldStandard.get(sourceKey).get(targetKey);
+                        Double similarity = similarityMap.get(source).get(target);
+                        if (similarity > i && value.equals("yes")) {
+                            tp++;
+                        } else if (similarity > i && value.equals("no")) {
+                            fp++;
+                        } else if (similarity < i && value.equals("yes")) {
+                            fn++;
+                        } else if (similarity < i && value.equals("no")) {
+                            tn++;
+                        }
+                    }
+                }
+            }
+        }
+        System.out.println("");
 
         try {
             htable.close();
@@ -109,9 +138,54 @@ public class MatchSubgraphs {
         }
     }
 
-    private static Map<Integer, Map<Integer, String>> loadGoldStandard() {
-        // Load gold standard
+    private static Map<String, Integer> getKeyFromName(Map<Integer, Dataset> datasets) {
+        Map<String, Integer> key2name = new HashMap<>();
+        for (int key : datasets.keySet()) {
+            key2name.put(datasets.get(key).getName(), key);
+        }
+
+        return key2name;
+    }
+
+    private static Map<Integer, Dataset>  getDatasets(String surveyDatasetsLocation) {
         Map<Integer, Dataset> datasetMap = new HashMap<>();
+        File jsonFile = new File("/home/mikel/doctorado/src/java/baselines/all.json");
+        Map<String, String> URL2NameMap = URL2Name(surveyDatasetsLocation);
+        BufferedReader br = null;
+        try {
+            br = new BufferedReader(new FileReader(jsonFile));
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        }
+        String jsonString = "";
+        String line;
+        try {
+            while((line = br.readLine()) != null) {
+                jsonString += line;
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        JSONArray jsonArray = new JSONArray(jsonString);
+        for (int i = 0; i < jsonArray.length(); i++) {
+            JSONObject jsonObject = jsonArray.getJSONObject(i);
+            String model = jsonObject.getString("model");
+            switch (model) {
+                case "survey.dataset":
+                    // Search dataset name in CSV
+                    String name = URL2NameMap.get(jsonObject.getJSONObject("fields").getString("datahub_url")) + ".g";
+                    Dataset dataset = new Dataset(jsonObject.getJSONObject("fields").getString("datahub_url"), name, jsonObject.getInt("pk"));
+                    datasetMap.put((Integer) jsonObject.get("pk"), dataset);
+                    break;
+                default:
+                    break;
+            }
+        }
+        return datasetMap;
+    }
+
+    private static Map<Integer, Map<Integer, String>> loadGoldStandard(String surveyDatasetsLocation) {
+        // Load gold standard
         Map<Integer, Map<Integer, Map<String, Integer>>> ratingMap = new HashMap<>();
         File jsonFile = new File("/home/mikel/doctorado/src/java/baselines/all.json");
         try {
@@ -126,10 +200,6 @@ public class MatchSubgraphs {
                 JSONObject jsonObject = jsonArray.getJSONObject(i);
                 String model = jsonObject.getString("model");
                 switch (model) {
-                    case "survey.dataset":
-                        Dataset dataset = new Dataset(jsonObject.getJSONObject("fields").getString("datahub_url"), "", jsonObject.getInt("pk"));
-                        datasetMap.put((Integer) jsonObject.get("pk"), dataset);
-                        break;
                     case "survey.similarity":
                         int sourceDataset = jsonObject.getJSONObject("fields").getInt("source_dataset");
                         int targetDataset = jsonObject.getJSONObject("fields").getInt("target_dataset");
@@ -188,11 +258,36 @@ public class MatchSubgraphs {
         return null;
     }
 
+    private static Map<String, String> URL2Name(String surveyDatasetsLocation) {
+        File surveyDatasets = new File(surveyDatasetsLocation);
+        Map<String, String> URL2NameMap = new HashMap<>();
+        try {
+            BufferedReader br = new BufferedReader(new FileReader(surveyDatasets));
+            boolean header = true;
+            String line;
+            while((line = br.readLine()) != null) {
+                if (header) {
+                    header = false;
+                } else {
+                    if (line.split(",").length >= 5) {
+                        String URL = line.split(",")[1];
+                        String name = line.split(",")[4];
+                        URL2NameMap.put(URL, name);
+                    }
+                }
+            }
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return URL2NameMap;
+    }
+
     private static double getDistance(Graph sourceMatchedGraph, Graph targetMatchedGraph, String subduePath) {
         String sourcePath = writeGraph(sourceMatchedGraph);
         String targetPath = writeGraph(targetMatchedGraph);
-        double distance = callSubdue(sourcePath, targetPath, subduePath);
-        return distance;
+        return callSubdue(sourcePath, targetPath, subduePath);
     }
 
     private static double callSubdue(String sourcePath, String targetPath, String subduePath) {
