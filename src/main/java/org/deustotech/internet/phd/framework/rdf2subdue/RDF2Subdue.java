@@ -91,11 +91,20 @@ public class RDF2Subdue {
                 File file = new File(String.format("%s/%s_%s.g", dir, dataset, count));
                 FileWriter fw = new FileWriter(file.getAbsoluteFile());
                 BufferedWriter bw = new BufferedWriter(fw);
+                SortedMap<Long, String> orderedVertices = new TreeMap<>();
                 while ((scannerResult = scanner.next()) != null) {
                     long id = Bytes.toLong(scannerResult.getValue(Bytes.toBytes("cf"), Bytes.toBytes("id")));
                     String label = Bytes.toString(scannerResult.getValue(Bytes.toBytes("cf"), Bytes.toBytes("label")));
+                    orderedVertices.put(id, label);
+                    //bw.write(String.format("v %s %s\n", id, label));
+                }
+
+                Set<Long> ids = orderedVertices.keySet();
+                for (long id : ids) {
+                    String label = orderedVertices.get(id);
                     bw.write(String.format("v %s %s\n", id, label));
                 }
+
                 scanner.close();
                 bw.flush();
 
@@ -214,7 +223,7 @@ public class RDF2Subdue {
 
             Put put = new Put(Bytes.toBytes(UUID.randomUUID().toString()));
             put.add(Bytes.toBytes("cf"), Bytes.toBytes("id"), Bytes.toBytes(id));
-            put.add(Bytes.toBytes("cf"), Bytes.toBytes("label"), Bytes.toBytes(clazz));
+            put.add(Bytes.toBytes("cf"), Bytes.toBytes("label"), Bytes.toBytes(String.format("<%s>", clazz)));
 
             try {
                 table.put(put);
@@ -243,6 +252,11 @@ public class RDF2Subdue {
                 vertexMap.put(object, idList);
                 Put put = new Put(Bytes.toBytes(UUID.randomUUID().toString()));
                 put.add(Bytes.toBytes("cf"), Bytes.toBytes("id"), Bytes.toBytes(id));
+                if (result.get("o").isLiteral()) {
+                    object = String.format("\"%s\"", object);
+                } else {
+                    object = String.format("<%s>", object);
+                }
                 put.add(Bytes.toBytes("cf"), Bytes.toBytes("label"), Bytes.toBytes(object));
 
                 try {
