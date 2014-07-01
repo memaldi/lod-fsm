@@ -192,7 +192,7 @@ public class RDF2Subdue {
         }
 
         VirtGraph graph = new VirtGraph("http://" + dataset, connectionURL.toString(), prop.getProperty("virtuoso_user"), prop.getProperty("virtuoso_password"));
-        Query query = QueryFactory.create("SELECT DISTINCT ?s ?class WHERE {?s a ?class} ORDER BY ?s OFFSET" + offset);
+            Query query = QueryFactory.create("SELECT DISTINCT ?s ?class WHERE {?s a ?class} ORDER BY ?s OFFSET" + offset);
         VirtuosoQueryExecution vqe = VirtuosoQueryExecutionFactory.create(query, graph);
         ResultSet results = vqe.execSelect();
         logger.info("Generating vertices...");
@@ -266,21 +266,23 @@ public class RDF2Subdue {
             List<Long> sourceIdList = vertexMap.get(result.get("s").toString());
             String predicate = result.get("p").toString();
             if (!predicate.equals(RDF.type.getURI())) {
-                for (long sourceId : sourceIdList) {
-                    List<Long> targetIdList = vertexMap.get(result.get("o").toString());
-                    if (targetIdList != null) {
-                        for (long targetId : targetIdList) {
-                            Put put = new Put(Bytes.toBytes(UUID.randomUUID().toString()));
-                            put.add(Bytes.toBytes("cf"), Bytes.toBytes("source"), Bytes.toBytes(sourceId));
-                            put.add(Bytes.toBytes("cf"), Bytes.toBytes("target"), Bytes.toBytes(targetId));
-                            put.add(Bytes.toBytes("cf"), Bytes.toBytes("label"), Bytes.toBytes(predicate));
+                if (sourceIdList != null) {
+                    for (long sourceId : sourceIdList) {
+                        List<Long> targetIdList = vertexMap.get(result.get("o").toString());
+                        if (targetIdList != null) {
+                            for (long targetId : targetIdList) {
+                                Put put = new Put(Bytes.toBytes(UUID.randomUUID().toString()));
+                                put.add(Bytes.toBytes("cf"), Bytes.toBytes("source"), Bytes.toBytes(sourceId));
+                                put.add(Bytes.toBytes("cf"), Bytes.toBytes("target"), Bytes.toBytes(targetId));
+                                put.add(Bytes.toBytes("cf"), Bytes.toBytes("label"), Bytes.toBytes(predicate));
 
-                            try {
-                                table.put(put);
-                            } catch (InterruptedIOException e) {
-                                e.printStackTrace();
-                            } catch (RetriesExhaustedWithDetailsException e) {
-                                e.printStackTrace();
+                                try {
+                                    table.put(put);
+                                } catch (InterruptedIOException e) {
+                                    e.printStackTrace();
+                                } catch (RetriesExhaustedWithDetailsException e) {
+                                    e.printStackTrace();
+                                }
                             }
                         }
                     }
