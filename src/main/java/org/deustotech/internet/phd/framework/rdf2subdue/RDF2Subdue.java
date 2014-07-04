@@ -248,10 +248,11 @@ public class RDF2Subdue {
         }
         vqe.close();
 
-        query = QueryFactory.create("SELECT DISTINCT ?o WHERE { ?s ?p ?o . FILTER EXISTS { ?s a ?class } . FILTER NOT EXISTS { ?o ?p2 ?o2 } } ORDER BY ?o");
+        query = QueryFactory.create("SELECT DISTINCT ?o WHERE { ?s ?p ?o . FILTER EXISTS { ?s a ?class } . FILTER NOT EXISTS { ?o ?p2 ?o2 } }");
         vqe = VirtuosoQueryExecutionFactory.create(query, graph);
         results = vqe.execSelect();
 
+        long literalHash = 0;
         while(results.hasNext()) {
             QuerySolution result = results.next();
             String object = result.get("o").toString();
@@ -262,7 +263,9 @@ public class RDF2Subdue {
                 Put put = new Put(Bytes.toBytes(UUID.randomUUID().toString()));
                 put.add(Bytes.toBytes("cf"), Bytes.toBytes("id"), Bytes.toBytes(id));
                 if (result.get("o").isLiteral()) {
-                    object = String.format("\"%s\"", object);
+                    //object = String.format("\"%s\"", object);
+                    object = String.valueOf(literalHash);
+                    literalHash++;
                 } else {
                     object = String.format("<%s>", object);
                 }
@@ -298,7 +301,7 @@ public class RDF2Subdue {
                                 Put put = new Put(Bytes.toBytes(UUID.randomUUID().toString()));
                                 put.add(Bytes.toBytes("cf"), Bytes.toBytes("source"), Bytes.toBytes(sourceId));
                                 put.add(Bytes.toBytes("cf"), Bytes.toBytes("target"), Bytes.toBytes(targetId));
-                                put.add(Bytes.toBytes("cf"), Bytes.toBytes("label"), Bytes.toBytes(predicate));
+                                put.add(Bytes.toBytes("cf"), Bytes.toBytes("label"), Bytes.toBytes(String.format("<%s>", predicate)));
                                 put.add(Bytes.toBytes("cf"), Bytes.toBytes("type"), Bytes.toBytes("edge"));
 
                                 try {
