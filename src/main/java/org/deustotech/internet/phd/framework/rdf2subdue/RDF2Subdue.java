@@ -4,8 +4,6 @@ import com.hp.hpl.jena.query.Query;
 import com.hp.hpl.jena.query.QueryFactory;
 import com.hp.hpl.jena.query.QuerySolution;
 import com.hp.hpl.jena.query.ResultSet;
-import com.hp.hpl.jena.rdf.model.Property;
-import com.hp.hpl.jena.rdf.model.RDFNode;
 import com.hp.hpl.jena.vocabulary.RDF;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
@@ -52,13 +50,13 @@ public class RDF2Subdue {
         String dir = String.format("%s/%s", outputDir, dataset);
         new File(dir).mkdir();
         logger.info("Counting vertices...");
-        List<Filter> filterList = new ArrayList<>();
+        List<Filter> andFilterList = new ArrayList<>();
         SingleColumnValueFilter filter = new SingleColumnValueFilter(Bytes.toBytes("cf"), Bytes.toBytes("type"), CompareFilter.CompareOp.EQUAL, Bytes.toBytes("vertex"));
         filter.setFilterIfMissing(true);
-        filterList.add(filter);
-        FilterList fl = new FilterList(FilterList.Operator.MUST_PASS_ALL, filterList);
+        andFilterList.add(filter);
+        FilterList andFilter = new FilterList(FilterList.Operator.MUST_PASS_ALL, andFilterList);
         Scan scan = new Scan();
-        scan.setFilter(fl);
+        scan.setFilter(andFilter);
 
         try {
             ResultScanner scanner = table.getScanner(scan);
@@ -77,16 +75,16 @@ public class RDF2Subdue {
 
             while (!end) {
                 logger.info(String.format("Writing %s_%s.g...", dataset, count));
-                filterList = new ArrayList<>();
+                andFilterList = new ArrayList<>();
                 SingleColumnValueFilter lowerFilter = new SingleColumnValueFilter(Bytes.toBytes("cf"), Bytes.toBytes("id"), CompareFilter.CompareOp.GREATER, Bytes.toBytes(lowerLimit));
                 lowerFilter.setFilterIfMissing(true);
                 SingleColumnValueFilter upperFilter = new SingleColumnValueFilter(Bytes.toBytes("cf"), Bytes.toBytes("id"), CompareFilter.CompareOp.LESS_OR_EQUAL, Bytes.toBytes(upperLimit));
                 upperFilter.setFilterIfMissing(true);
-                filterList.add(lowerFilter);
-                filterList.add(upperFilter);
-                fl = new FilterList(FilterList.Operator.MUST_PASS_ALL, filterList);
+                andFilterList.add(lowerFilter);
+                andFilterList.add(upperFilter);
+                andFilter = new FilterList(FilterList.Operator.MUST_PASS_ALL, andFilterList);
                 scan = new Scan();
-                scan.setFilter(fl);
+                scan.setFilter(andFilter);
                 scanner = table.getScanner(scan);
                 File file = new File(String.format("%s/%s_%s.g", dir, dataset, count));
                 FileWriter fw = new FileWriter(file.getAbsoluteFile());
@@ -108,7 +106,7 @@ public class RDF2Subdue {
                 scanner.close();
                 bw.flush();
 
-                filterList = new ArrayList<>();
+                andFilterList = new ArrayList<>();
                 SingleColumnValueFilter sourceLowerFilter = new SingleColumnValueFilter(Bytes.toBytes("cf"), Bytes.toBytes("source"), CompareFilter.CompareOp.GREATER, Bytes.toBytes(lowerLimit));
                 sourceLowerFilter.setFilterIfMissing(true);
                 SingleColumnValueFilter sourceUpperFilter = new SingleColumnValueFilter(Bytes.toBytes("cf"), Bytes.toBytes("source"), CompareFilter.CompareOp.LESS_OR_EQUAL, Bytes.toBytes(upperLimit));
@@ -118,12 +116,22 @@ public class RDF2Subdue {
                 SingleColumnValueFilter targetUpperFilter = new SingleColumnValueFilter(Bytes.toBytes("cf"), Bytes.toBytes("target"), CompareFilter.CompareOp.LESS_OR_EQUAL, Bytes.toBytes(upperLimit));
                 targetUpperFilter.setFilterIfMissing(true);
 
-                filterList.add(sourceLowerFilter);
-                filterList.add(sourceUpperFilter);
-                filterList.add(targetLowerFilter);
-                filterList.add(targetUpperFilter);
+                //filterList.add(sourceLowerFilter);
+                andFilterList.add(sourceUpperFilter);
+                //filterList.add(targetLowerFilter);
+                andFilterList.add(targetUpperFilter);
 
-                fl = new FilterList(FilterList.Operator.MUST_PASS_ALL, filterList);
+                andFilter = new FilterList(FilterList.Operator.MUST_PASS_ALL, andFilterList);
+
+                List<Filter> orFilterList = new ArrayList<>();
+                orFilterList.add(sourceLowerFilter);
+                orFilterList.add(targetLowerFilter);
+                FilterList orFilter = new FilterList(FilterList.Operator.MUST_PASS_ONE, orFilterList);
+
+                FilterList fl = new FilterList(FilterList.Operator.MUST_PASS_ALL);
+                fl.addFilter(andFilter);
+                fl.addFilter(orFilter);
+
                 scan = new Scan();
                 scan.setFilter(fl);
                 scanner = table.getScanner(scan);
@@ -224,6 +232,7 @@ public class RDF2Subdue {
             Put put = new Put(Bytes.toBytes(UUID.randomUUID().toString()));
             put.add(Bytes.toBytes("cf"), Bytes.toBytes("id"), Bytes.toBytes(id));
             put.add(Bytes.toBytes("cf"), Bytes.toBytes("label"), Bytes.toBytes(String.format("<%s>", clazz)));
+            put.add(Bytes.toBytes("cf"), Bytes.toBytes("type"), Bytes.toBytes("vertex"));
 
             try {
                 table.put(put);
@@ -258,6 +267,7 @@ public class RDF2Subdue {
                     object = String.format("<%s>", object);
                 }
                 put.add(Bytes.toBytes("cf"), Bytes.toBytes("label"), Bytes.toBytes(object));
+                put.add(Bytes.toBytes("cf"), Bytes.toBytes("type"), Bytes.toBytes("vertex"));
 
                 try {
                     table.put(put);
@@ -289,6 +299,7 @@ public class RDF2Subdue {
                                 put.add(Bytes.toBytes("cf"), Bytes.toBytes("source"), Bytes.toBytes(sourceId));
                                 put.add(Bytes.toBytes("cf"), Bytes.toBytes("target"), Bytes.toBytes(targetId));
                                 put.add(Bytes.toBytes("cf"), Bytes.toBytes("label"), Bytes.toBytes(predicate));
+                                put.add(Bytes.toBytes("cf"), Bytes.toBytes("type"), Bytes.toBytes("edge"));
 
                                 try {
                                     table.put(put);
