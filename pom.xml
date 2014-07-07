@@ -9,6 +9,7 @@
         <launch>rdf2subdue</launch>
         <args.1>null</args.1>
         <args.2>null</args.2>
+        <args.3>null</args.3>
     </properties>
 
     <build>
@@ -32,6 +33,7 @@
                         <argument>${launch}</argument>
                         <argument>${args.1}</argument>
                         <argument>${args.2}</argument>
+                        <argument>${args.3}</argument>
                     </arguments>
                 </configuration>
             </plugin>
