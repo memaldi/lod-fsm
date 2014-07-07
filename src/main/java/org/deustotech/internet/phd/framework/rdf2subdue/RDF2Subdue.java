@@ -149,12 +149,14 @@ public class RDF2Subdue {
                     bw.flush();
                     bw.close();
 
-                    lowerLimit += limit;
-                    upperLimit += limit;
-                    count++;
-                    if (lowerLimit > total) {
-                        end = true;
-                    }
+                } else {
+                    logger.info(String.format("Skipping %s_%s.g", dataset, count));
+                }
+                lowerLimit += limit;
+                upperLimit += limit;
+                count++;
+                if (lowerLimit > total) {
+                    end = true;
                 }
             }
 
