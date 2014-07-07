@@ -32,8 +32,10 @@ import java.util.logging.Logger;
  */
 public class RDF2Subdue {
 
-    public static void run(String dataset, String outputDir) {
-        generateId(dataset);
+    public static void run(String dataset, String outputDir, boolean cont) {
+        if (!cont) {
+            generateId(dataset);
+        }
         writeFile(dataset, outputDir);
     }
 
@@ -74,82 +76,85 @@ public class RDF2Subdue {
             int count = 1;
 
             while (!end) {
-                logger.info(String.format("Writing %s_%s.g...", dataset, count));
-                andFilterList = new ArrayList<>();
-                SingleColumnValueFilter lowerFilter = new SingleColumnValueFilter(Bytes.toBytes("cf"), Bytes.toBytes("id"), CompareFilter.CompareOp.GREATER, Bytes.toBytes(lowerLimit));
-                lowerFilter.setFilterIfMissing(true);
-                SingleColumnValueFilter upperFilter = new SingleColumnValueFilter(Bytes.toBytes("cf"), Bytes.toBytes("id"), CompareFilter.CompareOp.LESS_OR_EQUAL, Bytes.toBytes(upperLimit));
-                upperFilter.setFilterIfMissing(true);
-                andFilterList.add(lowerFilter);
-                andFilterList.add(upperFilter);
-                andFilter = new FilterList(FilterList.Operator.MUST_PASS_ALL, andFilterList);
-                scan = new Scan();
-                scan.setFilter(andFilter);
-                scanner = table.getScanner(scan);
-                File file = new File(String.format("%s/%s_%s.g", dir, dataset, count));
-                FileWriter fw = new FileWriter(file.getAbsoluteFile());
-                BufferedWriter bw = new BufferedWriter(fw);
-                SortedMap<Long, String> orderedVertices = new TreeMap<>();
-                while ((scannerResult = scanner.next()) != null) {
-                    long id = Bytes.toLong(scannerResult.getValue(Bytes.toBytes("cf"), Bytes.toBytes("id")));
-                    String label = Bytes.toString(scannerResult.getValue(Bytes.toBytes("cf"), Bytes.toBytes("label")));
-                    orderedVertices.put(id, label);
-                    //bw.write(String.format("v %s %s\n", id, label));
-                }
+                File f = new File(String.format("%s/%s_%s.g", dir, dataset, count));
+                if (!f.exists()) {
+                    logger.info(String.format("Writing %s_%s.g...", dataset, count));
+                    andFilterList = new ArrayList<>();
+                    SingleColumnValueFilter lowerFilter = new SingleColumnValueFilter(Bytes.toBytes("cf"), Bytes.toBytes("id"), CompareFilter.CompareOp.GREATER, Bytes.toBytes(lowerLimit));
+                    lowerFilter.setFilterIfMissing(true);
+                    SingleColumnValueFilter upperFilter = new SingleColumnValueFilter(Bytes.toBytes("cf"), Bytes.toBytes("id"), CompareFilter.CompareOp.LESS_OR_EQUAL, Bytes.toBytes(upperLimit));
+                    upperFilter.setFilterIfMissing(true);
+                    andFilterList.add(lowerFilter);
+                    andFilterList.add(upperFilter);
+                    andFilter = new FilterList(FilterList.Operator.MUST_PASS_ALL, andFilterList);
+                    scan = new Scan();
+                    scan.setFilter(andFilter);
+                    scanner = table.getScanner(scan);
+                    File file = new File(String.format("%s/%s_%s.g", dir, dataset, count));
+                    FileWriter fw = new FileWriter(file.getAbsoluteFile());
+                    BufferedWriter bw = new BufferedWriter(fw);
+                    SortedMap<Long, String> orderedVertices = new TreeMap<>();
+                    while ((scannerResult = scanner.next()) != null) {
+                        long id = Bytes.toLong(scannerResult.getValue(Bytes.toBytes("cf"), Bytes.toBytes("id")));
+                        String label = Bytes.toString(scannerResult.getValue(Bytes.toBytes("cf"), Bytes.toBytes("label")));
+                        orderedVertices.put(id, label);
+                        //bw.write(String.format("v %s %s\n", id, label));
+                    }
 
-                Set<Long> ids = orderedVertices.keySet();
-                for (long id : ids) {
-                    String label = orderedVertices.get(id);
-                    bw.write(String.format("v %s %s\n", id, label));
-                }
+                    Set<Long> ids = orderedVertices.keySet();
+                    for (long id : ids) {
+                        String label = orderedVertices.get(id);
+                        bw.write(String.format("v %s %s\n", id, label));
+                    }
 
-                scanner.close();
-                bw.flush();
+                    scanner.close();
+                    bw.flush();
 
-                andFilterList = new ArrayList<>();
-                SingleColumnValueFilter sourceLowerFilter = new SingleColumnValueFilter(Bytes.toBytes("cf"), Bytes.toBytes("source"), CompareFilter.CompareOp.GREATER, Bytes.toBytes(lowerLimit));
-                sourceLowerFilter.setFilterIfMissing(true);
-                SingleColumnValueFilter sourceUpperFilter = new SingleColumnValueFilter(Bytes.toBytes("cf"), Bytes.toBytes("source"), CompareFilter.CompareOp.LESS_OR_EQUAL, Bytes.toBytes(upperLimit));
-                sourceUpperFilter.setFilterIfMissing(true);
-                SingleColumnValueFilter targetLowerFilter = new SingleColumnValueFilter(Bytes.toBytes("cf"), Bytes.toBytes("target"), CompareFilter.CompareOp.GREATER, Bytes.toBytes(lowerLimit));
-                targetLowerFilter.setFilterIfMissing(true);
-                SingleColumnValueFilter targetUpperFilter = new SingleColumnValueFilter(Bytes.toBytes("cf"), Bytes.toBytes("target"), CompareFilter.CompareOp.LESS_OR_EQUAL, Bytes.toBytes(upperLimit));
-                targetUpperFilter.setFilterIfMissing(true);
+                    andFilterList = new ArrayList<>();
+                    SingleColumnValueFilter sourceLowerFilter = new SingleColumnValueFilter(Bytes.toBytes("cf"), Bytes.toBytes("source"), CompareFilter.CompareOp.GREATER, Bytes.toBytes(lowerLimit));
+                    sourceLowerFilter.setFilterIfMissing(true);
+                    SingleColumnValueFilter sourceUpperFilter = new SingleColumnValueFilter(Bytes.toBytes("cf"), Bytes.toBytes("source"), CompareFilter.CompareOp.LESS_OR_EQUAL, Bytes.toBytes(upperLimit));
+                    sourceUpperFilter.setFilterIfMissing(true);
+                    SingleColumnValueFilter targetLowerFilter = new SingleColumnValueFilter(Bytes.toBytes("cf"), Bytes.toBytes("target"), CompareFilter.CompareOp.GREATER, Bytes.toBytes(lowerLimit));
+                    targetLowerFilter.setFilterIfMissing(true);
+                    SingleColumnValueFilter targetUpperFilter = new SingleColumnValueFilter(Bytes.toBytes("cf"), Bytes.toBytes("target"), CompareFilter.CompareOp.LESS_OR_EQUAL, Bytes.toBytes(upperLimit));
+                    targetUpperFilter.setFilterIfMissing(true);
 
-                //filterList.add(sourceLowerFilter);
-                andFilterList.add(sourceUpperFilter);
-                //filterList.add(targetLowerFilter);
-                andFilterList.add(targetUpperFilter);
+                    //filterList.add(sourceLowerFilter);
+                    andFilterList.add(sourceUpperFilter);
+                    //filterList.add(targetLowerFilter);
+                    andFilterList.add(targetUpperFilter);
 
-                andFilter = new FilterList(FilterList.Operator.MUST_PASS_ALL, andFilterList);
+                    andFilter = new FilterList(FilterList.Operator.MUST_PASS_ALL, andFilterList);
 
-                List<Filter> orFilterList = new ArrayList<>();
-                orFilterList.add(sourceLowerFilter);
-                orFilterList.add(targetLowerFilter);
-                FilterList orFilter = new FilterList(FilterList.Operator.MUST_PASS_ONE, orFilterList);
+                    List<Filter> orFilterList = new ArrayList<>();
+                    orFilterList.add(sourceLowerFilter);
+                    orFilterList.add(targetLowerFilter);
+                    FilterList orFilter = new FilterList(FilterList.Operator.MUST_PASS_ONE, orFilterList);
 
-                FilterList fl = new FilterList(FilterList.Operator.MUST_PASS_ALL);
-                fl.addFilter(andFilter);
-                fl.addFilter(orFilter);
+                    FilterList fl = new FilterList(FilterList.Operator.MUST_PASS_ALL);
+                    fl.addFilter(andFilter);
+                    fl.addFilter(orFilter);
 
-                scan = new Scan();
-                scan.setFilter(fl);
-                scanner = table.getScanner(scan);
+                    scan = new Scan();
+                    scan.setFilter(fl);
+                    scanner = table.getScanner(scan);
 
-                while ((scannerResult = scanner.next()) != null) {
-                    long source = Bytes.toLong(scannerResult.getValue(Bytes.toBytes("cf"), Bytes.toBytes("source")));
-                    long target = Bytes.toLong(scannerResult.getValue(Bytes.toBytes("cf"), Bytes.toBytes("target")));
-                    String label = Bytes.toString(scannerResult.getValue(Bytes.toBytes("cf"), Bytes.toBytes("label")));
-                    bw.write(String.format("d %s %s %s\n", source, target, label));
-                }
-                bw.flush();
-                bw.close();
+                    while ((scannerResult = scanner.next()) != null) {
+                        long source = Bytes.toLong(scannerResult.getValue(Bytes.toBytes("cf"), Bytes.toBytes("source")));
+                        long target = Bytes.toLong(scannerResult.getValue(Bytes.toBytes("cf"), Bytes.toBytes("target")));
+                        String label = Bytes.toString(scannerResult.getValue(Bytes.toBytes("cf"), Bytes.toBytes("label")));
+                        bw.write(String.format("d %s %s %s\n", source, target, label));
+                    }
+                    bw.flush();
+                    bw.close();
 
-                lowerLimit += limit;
-                upperLimit += limit;
-                count ++;
-                if (lowerLimit > total) {
-                    end = true;
+                    lowerLimit += limit;
+                    upperLimit += limit;
+                    count++;
+                    if (lowerLimit > total) {
+                        end = true;
+                    }
                 }
             }
 

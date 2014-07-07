@@ -27,7 +27,7 @@ import java.util.*;
  * Created by mikel (m.emaldi at deusto dot es) on 20/06/14.
  */
 public class MatchSubgraphs {
-    public static void run(double similarityThreshold, String subduePath, boolean applyStringDistances, String surveyDatasetsLocation) {
+    public static void run(double similarityThreshold, String subduePath, boolean applyStringDistances, String surveyDatasetsLocation, String outputFile) {
         Configuration conf = HBaseConfiguration.create();
         HTable htable = null;
         try {
@@ -66,6 +66,16 @@ public class MatchSubgraphs {
 
         Generator<List<String>> graphPermutations = Itertools.permutations(Itertools.iter(graphSet.iterator()), 2);
         boolean end = false;
+
+        File file = new File(outputFile);
+        BufferedWriter bw;
+        try {
+            bw = new BufferedWriter(new FileWriter(file));
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
         while(!end) {
             try {
                 List<String> pair = graphPermutations.next();
@@ -130,6 +140,13 @@ public class MatchSubgraphs {
             }
         }
         System.out.println("");
+
+        double precision = (double) tp / (tp + fp);
+        double recall = (double) tp / (tp + fn);
+        double f1 = 2 * precision * recall / (precision + recall);
+
+        String line = String.format("%s;%s;%s;");
+
 
         try {
             htable.close();
