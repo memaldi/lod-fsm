@@ -61,13 +61,13 @@ public class RDF2Subdue {
         scan.setFilter(andFilter);
 
         try {
-            ResultScanner scanner = table.getScanner(scan);
-            Result scannerResult;
+            ResultScanner vertexCountScanner = table.getScanner(scan);
+            Result vertexCountScannerResult;
             long total = 0;
-            while((scannerResult = scanner.next()) != null) {
+            while((vertexCountScannerResult = vertexCountScanner.next()) != null) {
                 total++;
             }
-            scanner.close();
+            vertexCountScanner.close();
 
             boolean end = false;
             int limit = 1000;
@@ -89,14 +89,15 @@ public class RDF2Subdue {
                     andFilter = new FilterList(FilterList.Operator.MUST_PASS_ALL, andFilterList);
                     scan = new Scan();
                     scan.setFilter(andFilter);
-                    scanner = table.getScanner(scan);
+                    ResultScanner vertexScanner = table.getScanner(scan);
+                    Result vertexResult;
                     File file = new File(String.format("%s/%s_%s.g", dir, dataset, count));
                     FileWriter fw = new FileWriter(file.getAbsoluteFile());
                     BufferedWriter bw = new BufferedWriter(fw);
                     SortedMap<Long, String> orderedVertices = new TreeMap<>();
-                    while ((scannerResult = scanner.next()) != null) {
-                        long id = Bytes.toLong(scannerResult.getValue(Bytes.toBytes("cf"), Bytes.toBytes("id")));
-                        String label = Bytes.toString(scannerResult.getValue(Bytes.toBytes("cf"), Bytes.toBytes("label")));
+                    while ((vertexResult = vertexScanner.next()) != null) {
+                        long id = Bytes.toLong(vertexResult.getValue(Bytes.toBytes("cf"), Bytes.toBytes("id")));
+                        String label = Bytes.toString(vertexResult.getValue(Bytes.toBytes("cf"), Bytes.toBytes("label")));
                         orderedVertices.put(id, label);
                         //bw.write(String.format("v %s %s\n", id, label));
                     }
@@ -107,7 +108,7 @@ public class RDF2Subdue {
                         bw.write(String.format("v %s %s\n", id, label));
                     }
 
-                    scanner.close();
+                    vertexScanner.close();
                     bw.flush();
 
                     andFilterList = new ArrayList<>();
@@ -138,12 +139,12 @@ public class RDF2Subdue {
 
                     scan = new Scan();
                     scan.setFilter(fl);
-                    scanner = table.getScanner(scan);
-
-                    while ((scannerResult = scanner.next()) != null) {
-                        long source = Bytes.toLong(scannerResult.getValue(Bytes.toBytes("cf"), Bytes.toBytes("source")));
-                        long target = Bytes.toLong(scannerResult.getValue(Bytes.toBytes("cf"), Bytes.toBytes("target")));
-                        String label = Bytes.toString(scannerResult.getValue(Bytes.toBytes("cf"), Bytes.toBytes("label")));
+                    ResultScanner edgeScanner = table.getScanner(scan);
+                    Result edgeResult;
+                    while ((edgeResult = edgeScanner.next()) != null) {
+                        long source = Bytes.toLong(edgeResult.getValue(Bytes.toBytes("cf"), Bytes.toBytes("source")));
+                        long target = Bytes.toLong(edgeResult.getValue(Bytes.toBytes("cf"), Bytes.toBytes("target")));
+                        String label = Bytes.toString(edgeResult.getValue(Bytes.toBytes("cf"), Bytes.toBytes("label")));
                         bw.write(String.format("d %s %s %s\n", source, target, label));
                     }
                     bw.flush();
