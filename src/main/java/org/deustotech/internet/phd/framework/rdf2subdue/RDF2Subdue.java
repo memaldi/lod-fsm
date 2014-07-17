@@ -112,7 +112,7 @@ public class RDF2Subdue {
                     vertexScanner.close();
                     bw.flush();
 
-                    andFilterList = new ArrayList<>();
+                    List<Filter> edgeAndFilterList = new ArrayList<>();
                     SingleColumnValueFilter sourceLowerFilter = new SingleColumnValueFilter(Bytes.toBytes("cf"), Bytes.toBytes("source"), CompareFilter.CompareOp.GREATER, Bytes.toBytes(lowerLimit));
                     sourceLowerFilter.setFilterIfMissing(true);
                     SingleColumnValueFilter sourceUpperFilter = new SingleColumnValueFilter(Bytes.toBytes("cf"), Bytes.toBytes("source"), CompareFilter.CompareOp.LESS_OR_EQUAL, Bytes.toBytes(upperLimit));
@@ -122,12 +122,10 @@ public class RDF2Subdue {
                     SingleColumnValueFilter targetUpperFilter = new SingleColumnValueFilter(Bytes.toBytes("cf"), Bytes.toBytes("target"), CompareFilter.CompareOp.LESS_OR_EQUAL, Bytes.toBytes(upperLimit));
                     targetUpperFilter.setFilterIfMissing(true);
 
-                    //filterList.add(sourceLowerFilter);
-                    andFilterList.add(sourceUpperFilter);
-                    //filterList.add(targetLowerFilter);
-                    andFilterList.add(targetUpperFilter);
+                    edgeAndFilterList.add(sourceUpperFilter);
+                    edgeAndFilterList.add(targetUpperFilter);
 
-                    andFilter = new FilterList(FilterList.Operator.MUST_PASS_ALL, andFilterList);
+                    FilterList edgeAndFilter = new FilterList(FilterList.Operator.MUST_PASS_ALL, edgeAndFilterList);
 
                     List<Filter> orFilterList = new ArrayList<>();
                     orFilterList.add(sourceLowerFilter);
@@ -135,7 +133,7 @@ public class RDF2Subdue {
                     FilterList orFilter = new FilterList(FilterList.Operator.MUST_PASS_ONE, orFilterList);
 
                     FilterList fl = new FilterList(FilterList.Operator.MUST_PASS_ALL);
-                    fl.addFilter(andFilter);
+                    fl.addFilter(edgeAndFilter);
                     fl.addFilter(orFilter);
 
                     Scan edgeScan = new Scan();
