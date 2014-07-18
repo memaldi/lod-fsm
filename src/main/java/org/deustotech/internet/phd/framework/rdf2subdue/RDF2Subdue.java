@@ -112,20 +112,21 @@ public class RDF2Subdue {
                     vertexScanner.close();
                     bw.flush();
 
-                    List<Filter> edgeAndFilterList = new ArrayList<>();
+                    andFilterList = new ArrayList<>();
                     SingleColumnValueFilter sourceLowerFilter = new SingleColumnValueFilter(Bytes.toBytes("cf"), Bytes.toBytes("source"), CompareFilter.CompareOp.GREATER, Bytes.toBytes(lowerLimit));
                     sourceLowerFilter.setFilterIfMissing(true);
                     SingleColumnValueFilter sourceUpperFilter = new SingleColumnValueFilter(Bytes.toBytes("cf"), Bytes.toBytes("source"), CompareFilter.CompareOp.LESS_OR_EQUAL, Bytes.toBytes(upperLimit));
                     sourceUpperFilter.setFilterIfMissing(true);
                     SingleColumnValueFilter targetLowerFilter = new SingleColumnValueFilter(Bytes.toBytes("cf"), Bytes.toBytes("target"), CompareFilter.CompareOp.GREATER, Bytes.toBytes(lowerLimit));
                     targetLowerFilter.setFilterIfMissing(true);
-                    SingleColumnValueFilter targetUpperFilter = new SingleColumnValueFilter(Bytes.toBytes("cf"), Bytes.toBytes("target"), CompareFilter.CompareOp.LESS_OR_EQUAL, Bytes.toBytes(upperLimit));
-                    targetUpperFilter.setFilterIfMissing(true);
+                    //SingleColumnValueFilter targetUpperFilter = new SingleColumnValueFilter(Bytes.toBytes("cf"), Bytes.toBytes("target"), CompareFilter.CompareOp.LESS_OR_EQUAL, Bytes.toBytes(upperLimit));
+                    //targetUpperFilter.setFilterIfMissing(true);
 
-                    edgeAndFilterList.add(sourceUpperFilter);
-                    edgeAndFilterList.add(targetUpperFilter);
+                    andFilterList.add(sourceUpperFilter);
+                    //andFilterList.add(targetUpperFilter);
 
-                    FilterList edgeAndFilter = new FilterList(FilterList.Operator.MUST_PASS_ALL, edgeAndFilterList);
+                    andFilter = new FilterList(FilterList.Operator.MUST_PASS_ALL, andFilterList);
+
 
                     List<Filter> orFilterList = new ArrayList<>();
                     orFilterList.add(sourceLowerFilter);
@@ -133,7 +134,7 @@ public class RDF2Subdue {
                     FilterList orFilter = new FilterList(FilterList.Operator.MUST_PASS_ONE, orFilterList);
 
                     FilterList fl = new FilterList(FilterList.Operator.MUST_PASS_ALL);
-                    fl.addFilter(edgeAndFilter);
+                    fl.addFilter(andFilter);
                     fl.addFilter(orFilter);
 
                     Scan edgeScan = new Scan();
@@ -144,8 +145,10 @@ public class RDF2Subdue {
                     while ((edgeResult = edgeScanner.next()) != null) {
                         long source = Bytes.toLong(edgeResult.getValue(Bytes.toBytes("cf"), Bytes.toBytes("source")));
                         long target = Bytes.toLong(edgeResult.getValue(Bytes.toBytes("cf"), Bytes.toBytes("target")));
-                        String label = Bytes.toString(edgeResult.getValue(Bytes.toBytes("cf"), Bytes.toBytes("label")));
-                        bw.write(String.format("d %s %s %s\n", source, target, label));
+                        if (target <= upperLimit) {
+                            String label = Bytes.toString(edgeResult.getValue(Bytes.toBytes("cf"), Bytes.toBytes("label")));
+                            bw.write(String.format("d %s %s %s\n", source, target, label));
+                        }
                     }
                     bw.flush();
                     bw.close();
