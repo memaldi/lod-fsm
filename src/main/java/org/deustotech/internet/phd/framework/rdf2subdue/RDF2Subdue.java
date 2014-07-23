@@ -278,7 +278,7 @@ public class RDF2Subdue {
         Map<String, List<Long>> vertexMap = new HashMap<>();
 
         long id = 1;
-
+        long count = 0;
         List cells = new ArrayList();
         while (results.hasNext()) {
             QuerySolution result = results.next();
@@ -339,12 +339,17 @@ public class RDF2Subdue {
 
             offset++;
             jedis.set(String.format("rdf2subdue:%s:offset", dataset), String.valueOf(offset));
-        }
 
-        try {
-            client.set_cells(ns, dataset, cells);
-        } catch (TException e) {
-            e.printStackTrace();
+            count++;
+            if (count >= 500000) {
+                try {
+                    client.set_cells(ns, dataset, cells);
+                    cells = new ArrayList();
+                    count = 0;
+                } catch (TException e) {
+                    e.printStackTrace();
+                }
+            }
         }
 
         vqe.close();
@@ -353,6 +358,7 @@ public class RDF2Subdue {
         vqe = VirtuosoQueryExecutionFactory.create(query, graph);
         results = vqe.execSelect();
 
+        count = 0;
         cells = new ArrayList();
         long literalHash = 0;
         while (results.hasNext()) {
@@ -416,13 +422,18 @@ public class RDF2Subdue {
                 cells.add(cell);
 
                 id++;
-            }
-        }
 
-        try {
-            client.set_cells(ns, dataset, cells);
-        } catch (TException e) {
-            e.printStackTrace();
+                count++;
+                if (count >= 500000) {
+                    try {
+                        client.set_cells(ns, dataset, cells);
+                        cells = new ArrayList();
+                        count = 0;
+                    } catch (TException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
         }
 
         vqe.close();
