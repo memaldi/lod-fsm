@@ -275,8 +275,6 @@ public class RDF2Subdue {
         ResultSet results = vqe.execSelect();
         logger.info("Generating vertices...");
 
-        Map<String, List<Long>> vertexMap = new HashMap<>();
-
         long id = 1;
         long count = 0;
         List cells = new ArrayList();
@@ -285,13 +283,8 @@ public class RDF2Subdue {
             String subject = result.getResource("s").getURI();
             String clazz = result.getResource("class").getURI();
 
-            if (!vertexMap.containsKey(subject)) {
-                vertexMap.put(subject, new ArrayList<Long>());
-            }
+            jedis.lpush(String.format("rdf2subdue:%s:vertex:%s", dataset, subject), String.valueOf(id));
 
-            vertexMap.get(subject).add(id);
-
-            //cells = new ArrayList();
             Key key = null;
             Cell cell = null;
 
@@ -341,7 +334,7 @@ public class RDF2Subdue {
             jedis.set(String.format("rdf2subdue:%s:offset", dataset), String.valueOf(offset));
 
             count++;
-            if (count >= 500000) {
+            if (count >= 200000) {
                 try {
                     client.set_cells(ns, dataset, cells);
                     cells = new ArrayList();
@@ -350,6 +343,12 @@ public class RDF2Subdue {
                     e.printStackTrace();
                 }
             }
+        }
+
+        try {
+            client.set_cells(ns, dataset, cells);
+        } catch (TException e) {
+            e.printStackTrace();
         }
 
         vqe.close();
@@ -364,10 +363,13 @@ public class RDF2Subdue {
         while (results.hasNext()) {
             QuerySolution result = results.next();
             String object = result.get("o").toString();
-            if (!vertexMap.containsKey(object)) {
+
+            if (jedis.exists(String.format("rdf2subdue:%s:vertex:%s", dataset, object))) {
                 List<Long> idList = new ArrayList<>();
                 idList.add(id);
-                vertexMap.put(object, idList);
+                for (Long item : idList) {
+                    jedis.lpush(String.format("rdf2subdue:%s:vertex:%s", dataset, object), String.valueOf(item));
+                }
 
                 Key key = null;
                 Cell cell = null;
@@ -424,7 +426,7 @@ public class RDF2Subdue {
                 id++;
 
                 count++;
-                if (count >= 500000) {
+                if (count >= 200000) {
                     try {
                         client.set_cells(ns, dataset, cells);
                         cells = new ArrayList();
@@ -445,15 +447,14 @@ public class RDF2Subdue {
         cells = new ArrayList();
         while (results.hasNext()) {
             QuerySolution result = results.next();
-            List<Long> sourceIdList = vertexMap.get(result.get("s").toString());
+            List<String> sourceIdList = jedis.lrange(String.format("rdf2subdue:%s:vertex:%s", dataset, result.get("s").toString()), 0, jedis.llen(String.format("rdf2subdue:%s:vertex:%s", dataset, result.get("s").toString())));
             String predicate = result.get("p").toString();
             if (!predicate.equals(RDF.type.getURI())) {
                 if (sourceIdList != null) {
-                    for (long sourceId : sourceIdList) {
-                        List<Long> targetIdList = vertexMap.get(result.get("o").toString());
+                    for (String sourceId : sourceIdList) {
+                        List<String> targetIdList = jedis.lrange(String.format("rdf2subdue:%s:vertex:%s", dataset, result.get("o").toString()), 0, jedis.llen(String.format("rdf2subdue:%s:vertex:%s", dataset, result.get("o").toString())));
                         if (targetIdList != null) {
-                            for (long targetId : targetIdList) {
-
+                            for (String targetId : targetIdList) {
                                 Key key = null;
                                 Cell cell = null;
 
