@@ -438,12 +438,19 @@ public class RDF2Subdue {
             }
         }
 
+        try {
+            client.set_cells(ns, dataset, cells);
+        } catch (TException e) {
+            e.printStackTrace();
+        }
+
         vqe.close();
 
         query = QueryFactory.create("SELECT DISTINCT ?s ?p ?o WHERE { ?s ?p ?o . FILTER EXISTS { ?s a ?class } } ORDER BY ?s");
         vqe = VirtuosoQueryExecutionFactory.create(query, graph);
         results = vqe.execSelect();
 
+        count = 0;
         cells = new ArrayList();
         while (results.hasNext()) {
             QuerySolution result = results.next();
@@ -507,6 +514,17 @@ public class RDF2Subdue {
                                     e.printStackTrace();
                                 }
                                 cells.add(cell);
+
+                                count++;
+                                if (count >= 200000) {
+                                    try {
+                                        client.set_cells(ns, dataset, cells);
+                                        cells = new ArrayList();
+                                        count = 0;
+                                    } catch (TException e) {
+                                        e.printStackTrace();
+                                    }
+                                }
 
                             }
                         }
