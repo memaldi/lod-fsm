@@ -94,8 +94,6 @@ public class RDF2Subdue {
             if (!f.exists()) {
                 logger.info(String.format("Writing %s_%s.g...", dataset, count));
 
-                SortedMap<Long, String> orderedVertices = new TreeMap<>();
-
                 File file = new File(String.format("%s/%s_%s.g", dir, dataset, count));
                 FileWriter fw = null;
                 try {
