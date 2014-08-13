@@ -18,6 +18,7 @@ import virtuoso.jena.driver.VirtuosoQueryExecutionFactory;
 import java.io.*;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.logging.Logger;
 
@@ -60,7 +61,7 @@ public class RDF2Subdue {
         new File(dir).mkdir();
         logger.info("Counting vertices...");
 
-        HqlResult hqlVertexResult = null;
+        /*HqlResult hqlVertexResult = null;
         try {
             hqlVertexResult = client.hql_query(ns, String.format("SELECT * from %s WHERE type = 'vertex'", dataset));
         } catch (TException e) {
@@ -72,16 +73,18 @@ public class RDF2Subdue {
             hqlEdgeResult = client.hql_query(ns, String.format("SELECT * from %s WHERE type = 'edge'", dataset));
         } catch (TException e) {
             e.printStackTrace();
-        }
+        }*/
 
-        long total = 0;
-        for (Cell cell : hqlVertexResult.getCells()) {
+        /*for (Cell cell : hqlVertexResult.getCells()) {
             total++;
-        }
+        }*/
+        //Jedis jedis = new Jedis("localhost");
+        //long total = (long) jedis.eval("return #redis.call('keys', 'rdf2subdue:ibm:vertex:*')");
+
 
         boolean end = false;
         int limit = 1000;
-        long lowerLimit = 0;
+        long lowerLimit = 1;
         long upperLimit = 1000;
         int count = 1;
 
@@ -102,33 +105,22 @@ public class RDF2Subdue {
                 }
                 BufferedWriter bw = new BufferedWriter(fw);
 
-                for (Cell cell : hqlVertexResult.getCells()) {
+                for (long i = lowerLimit; i <= upperLimit; i++) {
                     try {
-                        List<Cell> results = client.get_row(ns, dataset, cell.getKey().getRow());
-                        long id = 0;
-                        String label = null;
-                        for (Cell result : results) {
-                            Key key = result.getKey();
-                            if (key.getColumn_family().equals("id")) {
-                                id = Long.parseLong(Bytes.toString(result.getValue()));
-                            } else if (key.getColumn_family().equals("label")) {
-                                label = Bytes.toString(result.getValue());
+                        String query = String.format("SELECT id from %s WHERE id = '%s'", dataset, i);
+                        HqlResult hqlResult = client.hql_query(ns, query);
+                        if (hqlResult.getCells().size() > 0) {
+                            for (Cell cell : hqlResult.getCells()) {
+                                ByteBuffer labelBuffer = client.get_cell(ns, dataset, cell.getKey().getRow(), "label");
+                                String label = new String(labelBuffer.array(), labelBuffer.position(), labelBuffer.remaining());
+                                bw.write(String.format("v %s %s\n", i, label));
                             }
-                        }
-                        if (id <= upperLimit && id > lowerLimit) {
-                            orderedVertices.put(id, label);
+                        } else {
+                            end = true;
+                            break;
                         }
                     } catch (TException e) {
                         e.printStackTrace();
-                    }
-
-                }
-
-                Set<Long> ids = orderedVertices.keySet();
-                for (long id : ids) {
-                    String label = orderedVertices.get(id);
-                    try {
-                        bw.write(String.format("v %s %s\n", id, label));
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
@@ -140,33 +132,34 @@ public class RDF2Subdue {
                     e.printStackTrace();
                 }
 
-                for (Cell cell : hqlEdgeResult.getCells()) {
+                for (long i = lowerLimit; i <= upperLimit; i++) {
                     try {
-                        List<Cell> results = client.get_row(ns, dataset, cell.getKey().getRow());
-                        long source = 0;
-                        long target = 0;
-                        String label = null;
-
-                        for (Cell result : results) {
-                            Key key = result.getKey();
-                            if (key.getColumn_family().equals("source")) {
-                                source = Long.parseLong(Bytes.toString(result.getValue()));
-                            } else if (key.getColumn_family().equals("target")) {
-                                target = Long.parseLong(Bytes.toString(result.getValue()));
-                            } else if (key.getColumn_family().equals("label")) {
-                                label = Bytes.toString(result.getValue());
+                        String query = String.format("SELECT source from %s WHERE source = '%s'", dataset, i);
+                        HqlResult hqlResult = client.hql_query(ns, query);
+                        for (Cell cell : hqlResult.getCells()) {
+                            ByteBuffer targetBuffer = client.get_cell(ns, dataset, cell.getKey().getRow(), "target");
+                            String target = new String(targetBuffer.array(), targetBuffer.position(), targetBuffer.remaining());
+                            if (Long.parseLong(target) <= upperLimit) {
+                                ByteBuffer labelBuffer = client.get_cell(ns, dataset, cell.getKey().getRow(), "label");
+                                String label = new String(labelBuffer.array(), labelBuffer.position(), labelBuffer.remaining());
+                                bw.write(String.format("d %s %s %s\n", i, target, label));
                             }
                         }
 
-                        if ((source <= upperLimit && target <= upperLimit) && (source > lowerLimit || target > lowerLimit)) {
-                            try {
-                                bw.write(String.format("d %s %s %s\n", source, target, label));
-                            } catch (IOException e) {
-                                e.printStackTrace();
+                        query = String.format("SELECT target from %s WHERE target = '%s'", dataset, i);
+                        hqlResult = client.hql_query(ns, query);
+                        for (Cell cell : hqlResult.getCells()) {
+                            ByteBuffer sourceBuffer = client.get_cell(ns, dataset, cell.getKey().getRow(), "source");
+                            String source = new String(sourceBuffer.array(), sourceBuffer.position(), sourceBuffer.remaining());
+                            if (Long.parseLong(source) < lowerLimit) {
+                                ByteBuffer labelBuffer = client.get_cell(ns, dataset, cell.getKey().getRow(), "label");
+                                String label = new String(labelBuffer.array(), labelBuffer.position(), labelBuffer.remaining());
+                                bw.write(String.format("d %s %s %s\n", source, i, label));
                             }
                         }
-
                     } catch (TException e) {
+                        e.printStackTrace();
+                    } catch (IOException e) {
                         e.printStackTrace();
                     }
                 }
@@ -184,9 +177,6 @@ public class RDF2Subdue {
             lowerLimit += limit;
             upperLimit += limit;
             count++;
-            if (lowerLimit > total) {
-                end = true;
-            }
         }
 
 
@@ -488,9 +478,9 @@ public class RDF2Subdue {
 
             while (results.hasNext()) {
                 QuerySolution result = results.next();
-                List<String> sourceIdList = jedis.lrange(String.format("rdf2subdue:%s:vertex:%s", dataset, result.get("s").toString()), 0, jedis.llen(String.format("rdf2subdue:%s:vertex:%s", dataset, result.get("s").toString())));
                 String predicate = result.get("p").toString();
                 if (!predicate.equals(RDF.type.getURI())) {
+                    List<String> sourceIdList = jedis.lrange(String.format("rdf2subdue:%s:vertex:%s", dataset, result.get("s").toString()), 0, jedis.llen(String.format("rdf2subdue:%s:vertex:%s", dataset, result.get("s").toString())));
                     if (sourceIdList != null) {
                         for (String sourceId : sourceIdList) {
                             List<String> targetIdList = jedis.lrange(String.format("rdf2subdue:%s:vertex:%s", dataset, result.get("o").toString()), 0, jedis.llen(String.format("rdf2subdue:%s:vertex:%s", dataset, result.get("o").toString())));
@@ -589,7 +579,7 @@ public class RDF2Subdue {
         } catch (TException e) {
             e.printStackTrace();
         }
-
+        jedis.close();
         logger.info("Loading Done!");
     }
 }
