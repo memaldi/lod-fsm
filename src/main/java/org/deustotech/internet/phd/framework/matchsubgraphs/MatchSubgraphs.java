@@ -452,40 +452,50 @@ public class MatchSubgraphs {
         return matchedGraph;
     }
 
-    private static Map<String, Map<String, Double>> getDistance(HTable table, Generator<List<String>> vertexPermutations) {
+    private static Map<String, Map<String, Double>> getDistance(ThriftClient client, long ns, Generator<List<String>> vertexPermutations) {
         Map<String, Map<String, Double>> distanceMap = new HashMap<>();
         boolean end = false;
+
+        String query = "SELECT * FROM alignments WHERE distance = 'geometricMean'";
+
+        HqlResult hqlResult = null;
+        try {
+            hqlResult = client.hql_query(ns, query);
+        } catch (TException e) {
+            e.printStackTrace();
+        }
+
         while(!end) {
             try {
                 List<String> pair = vertexPermutations.next();
-                List<Filter> filterList = new ArrayList<>();
-                SingleColumnValueFilter sourceFilter = new SingleColumnValueFilter(Bytes.toBytes("cf"), Bytes.toBytes("source"), CompareFilter.CompareOp.EQUAL, Bytes.toBytes(pair.get(0)));
-                SingleColumnValueFilter targetFilter = new SingleColumnValueFilter(Bytes.toBytes("cf"), Bytes.toBytes("target"), CompareFilter.CompareOp.EQUAL, Bytes.toBytes(pair.get(1)));
-                SingleColumnValueFilter meanFilter = new SingleColumnValueFilter(Bytes.toBytes("cf"), Bytes.toBytes("distance"), CompareFilter.CompareOp.EQUAL, Bytes.toBytes("geometricMean"));
-                filterList.add(sourceFilter);
-                filterList.add(targetFilter);
-                filterList.add(meanFilter);
-                FilterList fl = new FilterList(FilterList.Operator.MUST_PASS_ALL, filterList);
-                Scan scan = new Scan();
-                scan.setFilter(fl);
 
-                try {
-                    ResultScanner scanner = table.getScanner(scan);
-                    Result result;
-                    while((result = scanner.next()) != null) {
-                        double value = Bytes.toDouble(result.getValue(Bytes.toBytes("cf"), Bytes.toBytes("value")));
-                        if (!distanceMap.containsKey(pair.get(0))) {
-                            distanceMap.put(pair.get(0), new HashMap<String, Double>());
+                for (Cell cell : hqlResult.getCells()) {
+                    ByteBuffer sourceBuffer = client.get_cell(ns, "alignments", cell.getKey().getRow(), "source");
+                    String source = new String(sourceBuffer.array(), sourceBuffer.position(), sourceBuffer.remaining());
+
+                    if (source.equals(pair.get(0))) {
+                        ByteBuffer targetBuffer = client.get_cell(ns, "alignments", cell.getKey().getRow(), "target");
+                        String target = new String(targetBuffer.array(), targetBuffer.position(), targetBuffer.remaining());
+
+                        if (target.equals(pair.get(1))) {
+                            ByteBuffer valueBuffer = client.get_cell(ns, "alignments", cell.getKey().getRow(), "value");
+                            double value = Double.valueOf(new String(valueBuffer.array(), valueBuffer.position(), valueBuffer.remaining()));
+                            if (!distanceMap.containsKey(pair.get(0))) {
+                                distanceMap.put(pair.get(0), new HashMap<String, Double>());
+                            }
+                            Map<String, Double> map = distanceMap.get(pair.get(0));
+                            map.put(pair.get(1), value);
+                            distanceMap.put(pair.get(0), map);
                         }
-                        Map<String, Double> map = distanceMap.get(pair.get(0));
-                        map.put(pair.get(1), value);
-                        distanceMap.put(pair.get(0), map);
                     }
-                } catch (IOException e) {
-                    e.printStackTrace();
                 }
+
             } catch (NoSuchElementException e) {
                 end = true;
+            } catch (ClientException e) {
+                e.printStackTrace();
+            } catch (TException e) {
+                e.printStackTrace();
             }
         }
         return distanceMap;
