@@ -299,8 +299,6 @@ public class GenerateAlignments {
 
                     cells.add(cell);
 
-                    cells.add(cell);
-
                     key = new Key();
                     key.setRow(keyID);
                     key.setColumn_family("value");

@@ -60,12 +60,6 @@ public class MatchSubgraphs {
             e.printStackTrace();
         }
 
-        // Debug
-        graphSet = new HashSet<>();
-        graphSet.add("hedatuz.g");
-        graphSet.add("risk.g");
-        // Debug end
-
         Map<String, Map<String, Double>> similarityMap = new HashMap<>();
 
         Generator<List<String>> graphPermutations = Itertools.permutations(Itertools.iter(graphSet.iterator()), 2);
@@ -142,14 +136,21 @@ public class MatchSubgraphs {
                     }
                 }
             }
+            System.out.println(String.format("Threshold: %s", i));
+
+            double precision = (double) tp / (tp + fp);
+            double recall = (double) tp / (tp + fn);
+            double f1 = 2 * precision * recall / (precision + recall);
+            double accuracy = (tp + tn) / (tp + tn + fp + fn);
+
+            System.out.println(String.format("Precision: %s", precision));
+            System.out.println(String.format("Recall: %s", recall));
+            System.out.println(String.format("F1: %s", f1));
+            System.out.println(String.format("Accuracy: %s", accuracy));
+
+            //String line = String.format("%s;%s;%s;");
         }
-        System.out.println("");
 
-        double precision = (double) tp / (tp + fp);
-        double recall = (double) tp / (tp + fn);
-        double f1 = 2 * precision * recall / (precision + recall);
-
-        String line = String.format("%s;%s;%s;");
     }
 
     private static Map<String, Integer> getKeyFromName(Map<Integer, Dataset> datasets) {
@@ -199,8 +200,28 @@ public class MatchSubgraphs {
     }
 
     private static Map<Integer, Map<Integer, String>> loadGoldStandard(String surveyDatasetsLocation) {
+
+        ThriftClient client = null;
+        try {
+            client = ThriftClient.create("localhost", 15867);
+        } catch (TException e) {
+            System.exit(1);
+        }
+
+        long ns = 0;
+        try {
+            if (!client.namespace_exists("gs")) {
+                client.namespace_create("gs");
+            }
+            ns = client.namespace_open("gs");
+        } catch (TException e) {
+            e.printStackTrace();
+        }
+
+        return null;
+
         // Load gold standard
-        Map<Integer, Map<Integer, Map<String, Integer>>> ratingMap = new HashMap<>();
+        /*Map<Integer, Map<Integer, Map<String, Integer>>> ratingMap = new HashMap<>();
         File jsonFile = new File("/home/mikel/doctorado/src/java/baselines/all.json");
         try {
             BufferedReader br = new BufferedReader(new FileReader(jsonFile));
@@ -269,7 +290,7 @@ public class MatchSubgraphs {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        return null;
+        return null;*/
     }
 
     private static Map<String, String> URL2Name(String surveyDatasetsLocation) {

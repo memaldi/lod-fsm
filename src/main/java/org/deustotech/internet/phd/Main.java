@@ -52,7 +52,7 @@ public class Main {
             case "matchsubgraphs":
                 MatchSubgraphs.run(Double.parseDouble(args[1]), args[2], Boolean.parseBoolean(args[3]), args[4], args[5]);
                 break;
-            case "loaddatahubgt":
+            case "loaddatahubgs":
                 LoadDataHubGS.run(args[1]);
                 break;
         }
