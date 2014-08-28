@@ -2,25 +2,20 @@ package org.deustotech.internet.phd.framework.matchsubgraphs;
 
 import net.ericaro.neoitertools.Generator;
 import net.ericaro.neoitertools.Itertools;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hbase.HBaseConfiguration;
-import org.apache.hadoop.hbase.client.HTable;
-import org.apache.hadoop.hbase.client.Result;
-import org.apache.hadoop.hbase.client.ResultScanner;
-import org.apache.hadoop.hbase.client.Scan;
-import org.apache.hadoop.hbase.filter.CompareFilter;
-import org.apache.hadoop.hbase.filter.Filter;
-import org.apache.hadoop.hbase.filter.FilterList;
-import org.apache.hadoop.hbase.filter.SingleColumnValueFilter;
-import org.apache.hadoop.hbase.util.Bytes;
+import org.apache.thrift.TException;
 import org.deustotech.internet.phd.framework.model.Dataset;
 import org.deustotech.internet.phd.framework.model.Edge;
 import org.deustotech.internet.phd.framework.model.Graph;
 import org.deustotech.internet.phd.framework.model.Vertex;
+import org.hypertable.thrift.ThriftClient;
+import org.hypertable.thriftgen.Cell;
+import org.hypertable.thriftgen.ClientException;
+import org.hypertable.thriftgen.HqlResult;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.*;
+import java.nio.ByteBuffer;
 import java.util.*;
 
 /**
@@ -28,31 +23,40 @@ import java.util.*;
  */
 public class MatchSubgraphs {
     public static void run(double similarityThreshold, String subduePath, boolean applyStringDistances, String surveyDatasetsLocation, String outputFile) {
-        Configuration conf = HBaseConfiguration.create();
-        HTable htable = null;
+        ThriftClient client = null;
         try {
-            htable = new HTable(conf, "subgraphs");
-        } catch (IOException e) {
+            client = ThriftClient.create("localhost", 15867);
+        } catch (TException e) {
+            System.exit(1);
+        }
+
+        long ns = 0;
+        try {
+            if (!client.namespace_exists("framework")) {
+                client.namespace_create("framework");
+            }
+            ns = client.namespace_open("framework");
+        } catch (TException e) {
             e.printStackTrace();
         }
-        List<Filter> filterList = new ArrayList<>();
-        SingleColumnValueFilter filter = new SingleColumnValueFilter(Bytes.toBytes("cf"), Bytes.toBytes("type"), CompareFilter.CompareOp.EQUAL, Bytes.toBytes("vertex"));
-        filterList.add(filter);
-        FilterList fl = new FilterList(FilterList.Operator.MUST_PASS_ALL, filterList);
-        Scan scan = new Scan();
-        scan.setFilter(fl);
 
         Set<String> graphSet = new HashSet<>();
 
         try {
-            ResultScanner scanner = htable.getScanner(scan);
-            Result result;
-            while ((result = scanner.next()) != null) {
-                String graph = Bytes.toString(result.getValue(Bytes.toBytes("cf"), Bytes.toBytes("graph")));
-                graphSet.add(graph);
+            String query = "SELECT * from subgraphs where type = 'vertex'";
+
+            HqlResult hqlResult = client.hql_query(ns, query);
+
+            if (hqlResult.getCells().size() > 0) {
+                for (Cell cell : hqlResult.getCells()) {
+                    ByteBuffer graphBuffer = client.get_cell(ns, "subgraphs", cell.getKey().getRow(), "graph");
+                    String graph = new String(graphBuffer.array(), graphBuffer.position(), graphBuffer.remaining());
+                    graphSet.add(graph);
+                }
             }
-            scanner.close();
-        } catch (IOException e) {
+        } catch (ClientException e) {
+            e.printStackTrace();
+        } catch (TException e) {
             e.printStackTrace();
         }
 
@@ -80,9 +84,9 @@ public class MatchSubgraphs {
             try {
                 List<String> pair = graphPermutations.next();
                 if (!pair.get(0).equals(pair.get(1))) {
-                    Graph sourceGraph = getGraph(pair.get(0), htable);
-                    Graph targetGraph = getGraph(pair.get(1), htable);
-                    List<Graph> matchedGraphs = matchGraphs(sourceGraph, targetGraph, conf, applyStringDistances, similarityThreshold);
+                    Graph sourceGraph = getGraph(pair.get(0), client, ns);
+                    Graph targetGraph = getGraph(pair.get(1), client, ns);
+                    List<Graph> matchedGraphs = matchGraphs(sourceGraph, targetGraph, client, ns, applyStringDistances, similarityThreshold);
                     Graph sourceMatchedGraph = matchedGraphs.get(0);
                     Graph targetMatchedGraph = matchedGraphs.get(1);
 
@@ -146,13 +150,6 @@ public class MatchSubgraphs {
         double f1 = 2 * precision * recall / (precision + recall);
 
         String line = String.format("%s;%s;%s;");
-
-
-        try {
-            htable.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
     }
 
     private static Map<String, Integer> getKeyFromName(Map<Integer, Dataset> datasets) {
@@ -358,16 +355,10 @@ public class MatchSubgraphs {
         return null;
     }
 
-    private static List<Graph> matchGraphs(Graph sourceGraph, Graph targetGraph, Configuration conf, boolean applyStringDistances, double similarityThreshold) {
+    private static List<Graph> matchGraphs(Graph sourceGraph, Graph targetGraph, ThriftClient client, long ns, boolean applyStringDistances, double similarityThreshold) {
         Graph matchedSourceGraph;
         Graph matchedTargetGraph;
         if (applyStringDistances) {
-            HTable table = null;
-            try {
-                table = new HTable(conf, "alignments");
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
 
             Set<String> labelSet = new HashSet<>();
             Set<String> edgeSet = new HashSet<>();
@@ -388,12 +379,12 @@ public class MatchSubgraphs {
             Generator<List<String>> vertexPermutations;
             if (labelSet.size() >= 2) {
                 vertexPermutations = Itertools.permutations(Itertools.iter(labelSet.iterator()), 2);
-                distanceMap.putAll(getDistance(table, vertexPermutations));
+                distanceMap.putAll(getDistance(client, ns, vertexPermutations));
             }
             Generator<List<String>> edgePermutations;
             if (edgeSet.size() >= 2) {
                 edgePermutations = Itertools.permutations(Itertools.iter(edgeSet.iterator()), 2);
-                distanceMap.putAll(getDistance(table, edgePermutations));
+                distanceMap.putAll(getDistance(client, ns, edgePermutations));
             }
 
             Map<String, String> replaceMap = new HashMap<>();
@@ -500,53 +491,56 @@ public class MatchSubgraphs {
         return distanceMap;
     }
 
-    private static Graph getGraph(String graphName, HTable table) {
-        // Get vertices
-        List<Filter> filterList = new ArrayList<>();
-        SingleColumnValueFilter graphFilter = new SingleColumnValueFilter(Bytes.toBytes("cf"), Bytes.toBytes("graph"), CompareFilter.CompareOp.EQUAL, Bytes.toBytes(graphName));
-        SingleColumnValueFilter vertexFilter = new SingleColumnValueFilter(Bytes.toBytes("cf"), Bytes.toBytes("type"), CompareFilter.CompareOp.EQUAL, Bytes.toBytes("vertex"));
-        filterList.add(graphFilter);
-        filterList.add(vertexFilter);
-        FilterList fl = new FilterList(FilterList.Operator.MUST_PASS_ALL, filterList);
-        Scan scan = new Scan();
-        scan.setFilter(fl);
+    private static Graph getGraph(String graphName, ThriftClient client, long ns) {
+
         Graph graph = new Graph(graphName);
+
+        String query = String.format("SELECT * from subgraphs where graph = '%s'", graphName);
+
+        HqlResult hqlResult = null;
         try {
-            ResultScanner scanner = table.getScanner(scan);
-            Result result;
-            while((result = scanner.next()) != null) {
-                long id = Bytes.toLong(result.getValue(Bytes.toBytes("cf"), Bytes.toBytes("id")));
-                String label = Bytes.toString(result.getValue(Bytes.toBytes("cf"), Bytes.toBytes("label")));
-                Vertex vertex = new Vertex(label, id);
-                graph.addVertex(vertex);
+            hqlResult = client.hql_query(ns, query);
+            if (hqlResult.getCells().size() > 0) {
+                // Get vertices
+                for (Cell cell : hqlResult.getCells()) {
+                    ByteBuffer typeBuffer = client.get_cell(ns, "subgraphs", cell.getKey().getRow(), "type");
+                    String type = new String(typeBuffer.array(), typeBuffer.position(), typeBuffer.remaining());
+                    if (type.equals("vertex")) {
+                        ByteBuffer idBuffer = client.get_cell(ns, "subgraphs", cell.getKey().getRow(), "id");
+                        long id = Long.parseLong(new String(idBuffer.array(), idBuffer.position(), idBuffer.remaining()));
+
+                        ByteBuffer labelBuffer = client.get_cell(ns, "subgraphs", cell.getKey().getRow(), "label");
+                        String label = new String(labelBuffer.array(), labelBuffer.position(), labelBuffer.remaining());
+
+                        Vertex vertex = new Vertex(label, id);
+                        graph.addVertex(vertex);
+                    }
+                }
+                // Get edges
+                for (Cell cell : hqlResult.getCells()) {
+                    ByteBuffer typeBuffer = client.get_cell(ns, "subgraphs", cell.getKey().getRow(), "type");
+                    String type = new String(typeBuffer.array(), typeBuffer.position(), typeBuffer.remaining());
+                    if (type.equals("edge")) {
+
+                        ByteBuffer sourceBuffer = client.get_cell(ns, "subgraphs", cell.getKey().getRow(), "source");
+                        long source = Long.parseLong(new String(sourceBuffer.array(), sourceBuffer.position(), sourceBuffer.remaining()));
+
+                        ByteBuffer targetBuffer = client.get_cell(ns, "subgraphs", cell.getKey().getRow(), "target");
+                        long target = Long.parseLong(new String(targetBuffer.array(), targetBuffer.position(), targetBuffer.remaining()));
+
+                        ByteBuffer labelBuffer = client.get_cell(ns, "subgraphs", cell.getKey().getRow(), "label");
+                        String label = new String(labelBuffer.array(), labelBuffer.position(), labelBuffer.remaining());
+
+                        Vertex sourceVertex = graph.getVertex(source);
+                        Vertex targetVertex = graph.getVertex(target);
+                        Edge edge = new Edge(label, targetVertex);
+                        sourceVertex.addEdge(edge);
+                        graph.updateVertex(sourceVertex);
+                    }
+                }
+
             }
-            scanner.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        // Get edges
-        filterList = new ArrayList<>();
-        graphFilter = new SingleColumnValueFilter(Bytes.toBytes("cf"), Bytes.toBytes("graph"), CompareFilter.CompareOp.EQUAL, Bytes.toBytes(graphName));
-        vertexFilter = new SingleColumnValueFilter(Bytes.toBytes("cf"), Bytes.toBytes("type"), CompareFilter.CompareOp.EQUAL, Bytes.toBytes("edge"));
-        filterList.add(graphFilter);
-        filterList.add(vertexFilter);
-        fl = new FilterList(FilterList.Operator.MUST_PASS_ALL, filterList);
-        scan = new Scan();
-        scan.setFilter(fl);
-        try {
-            ResultScanner scanner = table.getScanner(scan);
-            Result result;
-            while((result = scanner.next()) != null) {
-                long source = Bytes.toLong(result.getValue(Bytes.toBytes("cf"), Bytes.toBytes("source")));
-                long target = Bytes.toLong(result.getValue(Bytes.toBytes("cf"), Bytes.toBytes("target")));
-                String label = Bytes.toString(result.getValue(Bytes.toBytes("cf"), Bytes.toBytes("label")));
-                Vertex sourceVertex = graph.getVertex(source);
-                Vertex targetVertex = graph.getVertex(target);
-                Edge edge = new Edge(label, targetVertex);
-                sourceVertex.addEdge(edge);
-                graph.updateVertex(sourceVertex);
-            }
-        } catch (IOException e) {
+        } catch (TException e) {
             e.printStackTrace();
         }
 
