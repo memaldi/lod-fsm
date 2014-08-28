@@ -120,8 +120,8 @@ public class GenerateAlignments {
         Class[] cArg = new Class[2];
         cArg[0] = String.class;
         cArg[1] = String.class;
+        List<Cell> cells = new ArrayList<>();
         try {
-            List<Cell> cells = new ArrayList<>();
             while ((pair = labelPermutations.next()) != null) {
                 if (!getNamespace(pair.get(0)).equals(getNamespace(pair.get(1)))) {
                     double accum = 0.0;
@@ -316,18 +316,18 @@ public class GenerateAlignments {
                     cells.add(cell);
                 }
             }
-            client.set_cells(ns, "alignments", cells);
         } catch (NoSuchElementException e) {
             // Well, permutations.next() do not return null when the last element is reached.
+            try {
+                client.set_cells(ns, "alignments", cells);
+            } catch (TException e1) {
+                e1.printStackTrace();
+            }
         } catch (NoSuchMethodException e) {
             e.printStackTrace();
         } catch (InvocationTargetException e) {
             e.printStackTrace();
         } catch (IllegalAccessException e) {
-            e.printStackTrace();
-        } catch (ClientException e) {
-            e.printStackTrace();
-        } catch (TException e) {
             e.printStackTrace();
         }
     }
