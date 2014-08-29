@@ -49,6 +49,10 @@ public class LoadDataHubGS {
         cf.setName("links");
         columnFamilies.put("links", cf);
 
+        cf = new ColumnFamilySpec();
+        cf.setName("nickname");
+        columnFamilies.put("nickname", cf);
+
         schema.setColumn_families(columnFamilies);
 
         try {
@@ -110,8 +114,23 @@ public class LoadDataHubGS {
                             e.printStackTrace();
                         }
 
-
                         cells.add(cell);
+
+                        if (sline.length >= 5) {
+                            key = new Key();
+                            key.setRow(sline[1].replace("http://datahub.io/dataset/", ""));
+                            key.setColumn_family("nickname");
+                            cell = new Cell();
+                            cell.setKey(key);
+
+                            try {
+                                cell.setValue(sline[4].getBytes("UTF-8"));
+                            } catch (UnsupportedEncodingException e) {
+                                e.printStackTrace();
+                            }
+
+                            cells.add(cell);
+                        }
 
                     } catch(JSONException e) {
                         e.printStackTrace();

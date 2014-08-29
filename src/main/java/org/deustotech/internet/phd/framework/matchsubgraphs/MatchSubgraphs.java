@@ -2,6 +2,7 @@ package org.deustotech.internet.phd.framework.matchsubgraphs;
 
 import net.ericaro.neoitertools.Generator;
 import net.ericaro.neoitertools.Itertools;
+import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.thrift.TException;
 import org.deustotech.internet.phd.framework.model.Dataset;
 import org.deustotech.internet.phd.framework.model.Edge;
@@ -62,7 +63,7 @@ public class MatchSubgraphs {
 
         Map<String, Map<String, Double>> similarityMap = new HashMap<>();
 
-        Generator<List<String>> graphPermutations = Itertools.permutations(Itertools.iter(graphSet.iterator()), 2);
+        Generator<List<String>> graphPermutations = Itertools.combinations(Itertools.iter(graphSet.iterator()), 2);
         boolean end = false;
 
         File file = new File(outputFile);
@@ -108,8 +109,8 @@ public class MatchSubgraphs {
             }
         }
         Map<Integer, Dataset> datasets = getDatasets(surveyDatasetsLocation);
-        Map<Integer, Map<Integer, String>> goldStandard = loadGoldStandard(surveyDatasetsLocation);
-        Map<String, Integer> name2keyMap = getKeyFromName(datasets);
+        Map<String, List<String>> goldStandard = loadGoldStandard();
+        //Map<String, Integer> name2keyMap = getKeyFromName(datasets);
 
         int tp = 0;
         int fp = 0;
@@ -118,19 +119,26 @@ public class MatchSubgraphs {
 
         for (double i = 0; i < 1; i += 0.1 ) {
             for (String source : similarityMap.keySet()) {
-                int sourceKey = name2keyMap.get(source);
                 for (String target : similarityMap.keySet()) {
+                    List<String> linkList = goldStandard.get(source.replace(".g", "").toLowerCase());
                     if (!source.equals(target)) {
-                        int targetKey = name2keyMap.get(target);
-                        String value = goldStandard.get(sourceKey).get(targetKey);
+                        String value = "no";
+                        if (linkList != null) {
+                            if (linkList.contains(target.replace(".g", "").toLowerCase())) {
+                                value = "yes";
+                            }
+                        }
                         Double similarity = similarityMap.get(source).get(target);
+                        if (similarity == null) {
+                            similarity = similarityMap.get(target).get(source);
+                        }
                         if (similarity > i && value.equals("yes")) {
                             tp++;
                         } else if (similarity > i && value.equals("no")) {
                             fp++;
-                        } else if (similarity < i && value.equals("yes")) {
+                        } else if (similarity <= i && value.equals("yes")) {
                             fn++;
-                        } else if (similarity < i && value.equals("no")) {
+                        } else if (similarity <= i && value.equals("no")) {
                             tn++;
                         }
                     }
@@ -141,7 +149,7 @@ public class MatchSubgraphs {
             double precision = (double) tp / (tp + fp);
             double recall = (double) tp / (tp + fn);
             double f1 = 2 * precision * recall / (precision + recall);
-            double accuracy = (tp + tn) / (tp + tn + fp + fn);
+            double accuracy = (double) (tp + tn) / (tp + tn + fp + fn);
 
             System.out.println(String.format("Precision: %s", precision));
             System.out.println(String.format("Recall: %s", recall));
@@ -199,7 +207,7 @@ public class MatchSubgraphs {
         return datasetMap;
     }
 
-    private static Map<Integer, Map<Integer, String>> loadGoldStandard(String surveyDatasetsLocation) {
+    private static Map<String, List<String>> loadGoldStandard() {
 
         ThriftClient client = null;
         try {
@@ -218,7 +226,51 @@ public class MatchSubgraphs {
             e.printStackTrace();
         }
 
-        return null;
+        String query = "SELECT * from datahubgs";
+
+        HqlResult hqlResult = null;
+        try {
+            hqlResult = client.hql_query(ns, query);
+        } catch (TException e) {
+            e.printStackTrace();
+        }
+
+        Map<String, List<String>> datahubGS = new HashMap<>();
+
+        for (Cell cell : hqlResult.getCells()) {
+            if (cell.getKey().getColumn_family().equals("links")) {
+
+                String nickname = null;
+                try {
+                    ByteBuffer nickBuffer = client.get_cell(ns, "datahubgs", cell.getKey().getRow(), "nickname");
+                    nickname = new String(nickBuffer.array(), nickBuffer.position(), nickBuffer.remaining());
+
+                } catch (TException e) {
+                    e.printStackTrace();
+                }
+
+                String stringLinks = Bytes.toString(cell.getValue());
+                String[] sline = new String[0];
+                if (stringLinks != null) {
+                    sline = stringLinks.split(",");
+                }
+                List<String> linkList = new ArrayList<>();
+                for (int i = 0; i < sline.length; i++) {
+                    if (!sline[i].equals("")) {
+                        try {
+                            ByteBuffer linkBuffer = client.get_cell(ns, "datahubgs", sline[i], "nickname");
+                            String link = new String(linkBuffer.array(), linkBuffer.position(), linkBuffer.remaining());
+                            linkList.add(link);
+                        } catch (TException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                }
+                datahubGS.put(nickname.toLowerCase(), linkList);
+            }
+        }
+
+        return datahubGS;
 
         // Load gold standard
         /*Map<Integer, Map<Integer, Map<String, Integer>>> ratingMap = new HashMap<>();
@@ -399,12 +451,12 @@ public class MatchSubgraphs {
             Map<String, Map<String, Double>> distanceMap = new HashMap<>();
             Generator<List<String>> vertexPermutations;
             if (labelSet.size() >= 2) {
-                vertexPermutations = Itertools.permutations(Itertools.iter(labelSet.iterator()), 2);
+                vertexPermutations = Itertools.combinations(Itertools.iter(labelSet.iterator()), 2);
                 distanceMap.putAll(getDistance(client, ns, vertexPermutations));
             }
             Generator<List<String>> edgePermutations;
             if (edgeSet.size() >= 2) {
-                edgePermutations = Itertools.permutations(Itertools.iter(edgeSet.iterator()), 2);
+                edgePermutations = Itertools.combinations(Itertools.iter(edgeSet.iterator()), 2);
                 distanceMap.putAll(getDistance(client, ns, edgePermutations));
             }
 
