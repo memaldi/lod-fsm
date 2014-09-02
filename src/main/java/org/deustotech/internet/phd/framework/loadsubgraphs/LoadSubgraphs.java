@@ -1,16 +1,17 @@
 package org.deustotech.internet.phd.framework.loadsubgraphs;
 
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hbase.HBaseConfiguration;
-import org.apache.hadoop.hbase.HColumnDescriptor;
-import org.apache.hadoop.hbase.HTableDescriptor;
-import org.apache.hadoop.hbase.client.HBaseAdmin;
-import org.apache.hadoop.hbase.client.HTable;
-import org.apache.hadoop.hbase.client.Put;
+
+
 import org.apache.hadoop.hbase.util.Bytes;
+import org.apache.thrift.TException;
+import org.hypertable.thrift.ThriftClient;
+import org.hypertable.thriftgen.Cell;
+import org.hypertable.thriftgen.ColumnFamilySpec;
+import org.hypertable.thriftgen.Key;
+import org.hypertable.thriftgen.Schema;
 
 import java.io.*;
-import java.util.UUID;
+import java.util.*;
 import java.util.logging.Logger;
 
 /**
@@ -20,25 +21,59 @@ public class LoadSubgraphs {
     public static void run(String inputDir) {
         Logger logger = Logger.getLogger(LoadSubgraphs.class.getName());
         File folder = new File(inputDir);
-        Configuration conf = HBaseConfiguration.create();
-        HTable table = null;
+        ThriftClient client = null;
         try {
-            logger.info("Creating table \"subgraphs\"...");
-            HBaseAdmin hbase = null;
-            hbase = new HBaseAdmin(conf);
-            HTableDescriptor desc = new HTableDescriptor("subgraphs");
-            HColumnDescriptor meta = new HColumnDescriptor("cf".getBytes());
-            desc.addFamily(meta);
-            hbase.createTable(desc);
-        } catch (IOException e) {
-            logger.info("Table \"subgraphs\" already exists!");
+            client = ThriftClient.create("localhost", 15867);
+        } catch (TException e) {
+            System.exit(1);
         }
+
+        long ns = 0;
         try {
-            table = new HTable(conf, "subgraphs");
-        } catch (IOException e) {
+            if (!client.namespace_exists("framework")) {
+                client.namespace_create("framework");
+            }
+            ns = client.namespace_open("framework");
+        } catch (TException e) {
             e.printStackTrace();
         }
 
+        Schema schema = new Schema();
+
+        Map columnFamilies = new HashMap();
+
+        ColumnFamilySpec cf = new ColumnFamilySpec();
+        cf.setName("type");
+        columnFamilies.put("type", cf);
+
+        cf = new ColumnFamilySpec();
+        cf.setName("id");
+        columnFamilies.put("id", cf);
+
+        cf = new ColumnFamilySpec();
+        cf.setName("label");
+        columnFamilies.put("label", cf);
+
+        cf = new ColumnFamilySpec();
+        cf.setName("graph");
+        columnFamilies.put("graph", cf);
+
+        cf = new ColumnFamilySpec();
+        cf.setName("source");
+        columnFamilies.put("source", cf);
+
+        cf = new ColumnFamilySpec();
+        cf.setName("target");
+        columnFamilies.put("target", cf);
+
+        schema.setColumn_families(columnFamilies);
+
+        try {
+            client.table_create(ns, "subgraphs", schema);
+        } catch (TException e) {
+            e.printStackTrace();
+        }
+        List<Cell> cells = new ArrayList<>();
         for(File file : folder.listFiles()) {
             try {
                 FileReader fileReader = new FileReader(file);
@@ -48,22 +83,140 @@ public class LoadSubgraphs {
                     if (line.startsWith("v")) {
                         String copyLine = line.replace("\n", "");
                         String[] sline = copyLine.split(" ");
-                        Put put = new Put(Bytes.toBytes(UUID.randomUUID().toString()));
-                        put.add(Bytes.toBytes("cf"), Bytes.toBytes("type"), Bytes.toBytes("vertex"));
-                        put.add(Bytes.toBytes("cf"), Bytes.toBytes("id"), Bytes.toBytes(Long.parseLong(sline[1])));
-                        put.add(Bytes.toBytes("cf"), Bytes.toBytes("label"), Bytes.toBytes(sline[2].replace("<", "").replace(">", "")));
-                        put.add(Bytes.toBytes("cf"), Bytes.toBytes("graph"), Bytes.toBytes(file.getName()));
-                        table.put(put);
+
+                        String keyID = UUID.randomUUID().toString();
+                        Key key = new Key();
+                        key.setRow(keyID);
+                        key.setColumn_family("type");
+                        Cell cell = new Cell();
+                        cell.setKey(key);
+
+                        try {
+                            cell.setValue("vertex".getBytes("UTF-8"));
+                        } catch (UnsupportedEncodingException e) {
+                            e.printStackTrace();
+                        }
+
+                        cells.add(cell);
+
+                        key = new Key();
+                        key.setRow(keyID);
+                        key.setColumn_family("id");
+                        cell = new Cell();
+                        cell.setKey(key);
+
+                        try {
+                            cell.setValue(sline[1].getBytes("UTF-8"));
+                        } catch (UnsupportedEncodingException e) {
+                            e.printStackTrace();
+                        }
+
+                        cells.add(cell);
+
+                        key = new Key();
+                        key.setRow(keyID);
+                        key.setColumn_family("label");
+                        cell = new Cell();
+                        cell.setKey(key);
+
+                        try {
+                            cell.setValue(sline[2].replace("<", "").replace(">", "").getBytes("UTF-8"));
+                        } catch (UnsupportedEncodingException e) {
+                            e.printStackTrace();
+                        }
+
+                        cells.add(cell);
+
+                        key = new Key();
+                        key.setRow(keyID);
+                        key.setColumn_family("graph");
+                        cell = new Cell();
+                        cell.setKey(key);
+
+                        try {
+                            cell.setValue(file.getName().getBytes("UTF-8"));
+                        } catch (UnsupportedEncodingException e) {
+                            e.printStackTrace();
+                        }
+
+                        cells.add(cell);
+
+
                     } else if (line.startsWith("d")) {
                         String copyLine = line.replace("\n", "");
                         String[] sline = copyLine.split(" ");
-                        Put put = new Put(Bytes.toBytes(UUID.randomUUID().toString()));
-                        put.add(Bytes.toBytes("cf"), Bytes.toBytes("type"), Bytes.toBytes("edge"));
-                        put.add(Bytes.toBytes("cf"), Bytes.toBytes("source"), Bytes.toBytes(Long.parseLong(sline[1])));
-                        put.add(Bytes.toBytes("cf"), Bytes.toBytes("target"), Bytes.toBytes(Long.parseLong(sline[2])));
-                        put.add(Bytes.toBytes("cf"), Bytes.toBytes("label"), Bytes.toBytes(sline[3].replace("<", "").replace(">", "")));
-                        put.add(Bytes.toBytes("cf"), Bytes.toBytes("graph"), Bytes.toBytes(file.getName()));
-                        table.put(put);
+
+                        String keyID = UUID.randomUUID().toString();
+                        Key key = new Key();
+                        key.setRow(keyID);
+                        key.setColumn_family("type");
+                        Cell cell = new Cell();
+                        cell.setKey(key);
+
+                        try {
+                            cell.setValue("edge".getBytes("UTF-8"));
+                        } catch (UnsupportedEncodingException e) {
+                            e.printStackTrace();
+                        }
+
+                        cells.add(cell);
+
+                        key = new Key();
+                        key.setRow(keyID);
+                        key.setColumn_family("source");
+                        cell = new Cell();
+                        cell.setKey(key);
+
+                        try {
+                            cell.setValue(sline[1].getBytes("UTF-8"));
+                        } catch (UnsupportedEncodingException e) {
+                            e.printStackTrace();
+                        }
+
+                        cells.add(cell);
+
+                        key = new Key();
+                        key.setRow(keyID);
+                        key.setColumn_family("target");
+                        cell = new Cell();
+                        cell.setKey(key);
+
+                        try {
+                            cell.setValue(sline[2].getBytes("UTF-8"));
+                        } catch (UnsupportedEncodingException e) {
+                            e.printStackTrace();
+                        }
+
+                        cells.add(cell);
+
+                        key = new Key();
+                        key.setRow(keyID);
+                        key.setColumn_family("label");
+                        cell = new Cell();
+                        cell.setKey(key);
+
+                        try {
+                            cell.setValue(sline[3].replace("<", "").replace(">", "").getBytes("UTF-8"));
+                        } catch (UnsupportedEncodingException e) {
+                            e.printStackTrace();
+                        }
+
+                        cells.add(cell);
+
+                        key = new Key();
+                        key.setRow(keyID);
+                        key.setColumn_family("graph");
+                        cell = new Cell();
+                        cell.setKey(key);
+
+                        try {
+                            cell.setValue(file.getName().getBytes("UTF-8"));
+                        } catch (UnsupportedEncodingException e) {
+                            e.printStackTrace();
+                        }
+
+                        cells.add(cell);
+
                     }
                 }
             } catch (FileNotFoundException e) {
@@ -73,10 +226,11 @@ public class LoadSubgraphs {
             }
         }
         try {
-            table.close();
-        } catch (IOException e) {
+            client.set_cells(ns, "subgraphs", cells);
+        } catch (TException e) {
             e.printStackTrace();
         }
+        client.close();
         logger.info("Done!");
     }
 }

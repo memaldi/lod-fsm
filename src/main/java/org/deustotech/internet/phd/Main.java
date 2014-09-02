@@ -4,7 +4,7 @@ import org.deustotech.internet.phd.framework.generatealignments.GenerateAlignmen
 import org.deustotech.internet.phd.framework.loadsubgraphs.LoadSubgraphs;
 import org.deustotech.internet.phd.framework.matchsubgraphs.MatchSubgraphs;
 import org.deustotech.internet.phd.framework.rdf2subdue.RDF2Subdue;
-import org.deustotech.internet.phd.validation.LoadDataHubGT;
+import org.deustotech.internet.phd.validation.LoadDataHubGS;
 import org.deustotech.internet.phd.validation.TestDistances;
 
 import static java.lang.System.exit;
@@ -52,8 +52,8 @@ public class Main {
             case "matchsubgraphs":
                 MatchSubgraphs.run(Double.parseDouble(args[1]), args[2], Boolean.parseBoolean(args[3]), args[4], args[5]);
                 break;
-            case "loaddatahubgt":
-                LoadDataHubGT.run(args[1]);
+            case "loaddatahubgs":
+                LoadDataHubGS.run(args[1]);
                 break;
         }
     }
