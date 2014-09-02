@@ -22,3 +22,6 @@ release.properties
 # idea
 .idea
 *.iml
+
+#logs
+*.out
