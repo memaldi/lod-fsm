@@ -108,7 +108,7 @@ public class MatchSubgraphs {
                 end = true;
             }
         }
-        Map<Integer, Dataset> datasets = getDatasets(surveyDatasetsLocation);
+        //Map<Integer, Dataset> datasets = getDatasets(surveyDatasetsLocation);
         Map<String, List<String>> goldStandard = loadGoldStandard();
         //Map<String, Integer> name2keyMap = getKeyFromName(datasets);
 
@@ -172,14 +172,14 @@ public class MatchSubgraphs {
 
     private static Map<Integer, Dataset>  getDatasets(String surveyDatasetsLocation) {
         Map<Integer, Dataset> datasetMap = new HashMap<>();
-        File jsonFile = new File("/home/mikel/doctorado/src/java/baselines/all.json");
+        //File jsonFile = new File("/home/mikel/doctorado/src/java/baselines/all.json");
         Map<String, String> URL2NameMap = URL2Name(surveyDatasetsLocation);
         BufferedReader br = null;
-        try {
+        /*try {
             br = new BufferedReader(new FileReader(jsonFile));
         } catch (FileNotFoundException e) {
             e.printStackTrace();
-        }
+        }*/
         String jsonString = "";
         String line;
         try {
