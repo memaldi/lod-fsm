@@ -5,6 +5,9 @@ import org.apache.http.HttpResponse;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.HttpGet;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
+import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.thrift.TException;
 import org.hypertable.thrift.ThriftClient;
@@ -20,7 +23,7 @@ import java.util.*;
  */
 public class LoadDataHubGS {
 
-    private static String API_URL = "http://datahub.io/api/3/action/package_show?id=";
+    private static String API_URL = "/api/3/action/package_show?id=";
 
     public static void run(String inputCSV) {
 
@@ -80,6 +83,7 @@ public class LoadDataHubGS {
         if (prop.containsKey("proxy_host") && prop.containsKey("proxy_port") && prop.containsKey("proxy_protocol")) {
             HttpHost proxy = new HttpHost(prop.getProperty("proxy_host"), Integer.parseInt(prop.getProperty("proxy_port")), prop.getProperty("proxy_protocol"));
             config = RequestConfig.custom().setProxy(proxy).build();
+	    System.out.println("Hey!");
         }
 
         String line;
@@ -88,12 +92,16 @@ public class LoadDataHubGS {
             while ((line = br.readLine()) != null) {
                 String[] sline = line.split(",");
                 if (!sline[1].equals("")) {
+		    HttpHost target = new HttpHost("datahub.io", 80, "http");
                     String url = String.format("%s%s", API_URL, sline[1].replace("http://datahub.io/dataset/", ""));
-                    HttpClient httpClient = new DefaultHttpClient();
+                    //HttpClient httpClient = new DefaultHttpClient();
+		    CloseableHttpClient httpclient = HttpClients.createDefault();
                     HttpGet request = new HttpGet(url);
                     request.setConfig(config);
 
-                    HttpResponse response = httpClient.execute(request);
+                    //HttpResponse response = httpClient.execute(request);
+		    CloseableHttpResponse response = httpclient.execute(target, request);
+
 
                     BufferedReader rd = new BufferedReader(
                             new InputStreamReader(response.getEntity().getContent()));

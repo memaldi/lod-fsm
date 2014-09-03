@@ -25,3 +25,5 @@ release.properties
 
 #logs
 *.out
+
+src/main/resources/config.properties
