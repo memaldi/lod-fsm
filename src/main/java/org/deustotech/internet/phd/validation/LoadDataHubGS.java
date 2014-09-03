@@ -1,7 +1,9 @@
 package org.deustotech.internet.phd.validation;
 
+import org.apache.http.HttpHost;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.HttpClient;
+import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.thrift.TException;
@@ -11,10 +13,7 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import java.io.*;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * Created by mikel (m.emaldi at deusto dot es) on 26/08/14.
@@ -24,6 +23,16 @@ public class LoadDataHubGS {
     private static String API_URL = "http://datahub.io/api/3/action/package_show?id=";
 
     public static void run(String inputCSV) {
+
+        InputStream input = LoadDataHubGS.class.getResourceAsStream("/config.properties");
+        Properties prop = new Properties();
+        try {
+            prop.load(input);
+            input.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
 
         ThriftClient client = null;
         try {
@@ -67,6 +76,11 @@ public class LoadDataHubGS {
         } catch (FileNotFoundException e) {
             e.printStackTrace();
         }
+        RequestConfig config = RequestConfig.custom().build();
+        if (prop.containsKey("proxy_host") && prop.containsKey("proxy_port") && prop.containsKey("proxy_protocol")) {
+            HttpHost proxy = new HttpHost(prop.getProperty("proxy_host"), Integer.parseInt(prop.getProperty("proxy_port")), prop.getProperty("proxy_protocol"));
+            config = RequestConfig.custom().setProxy(proxy).build();
+        }
 
         String line;
         try {
@@ -77,6 +91,8 @@ public class LoadDataHubGS {
                     String url = String.format("%s%s", API_URL, sline[1].replace("http://datahub.io/dataset/", ""));
                     HttpClient httpClient = new DefaultHttpClient();
                     HttpGet request = new HttpGet(url);
+                    request.setConfig(config);
+
                     HttpResponse response = httpClient.execute(request);
 
                     BufferedReader rd = new BufferedReader(
