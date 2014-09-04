@@ -16,6 +16,8 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.*;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.nio.ByteBuffer;
 import java.util.*;
 
@@ -542,24 +544,50 @@ public class MatchSubgraphs {
             try {
                 List<String> pair = vertexPermutations.next();
 
-                for (Cell cell : hqlResult.getCells()) {
-                    ByteBuffer sourceBuffer = client.get_cell(ns, "alignments", cell.getKey().getRow(), "source");
-                    String source = new String(sourceBuffer.array(), sourceBuffer.position(), sourceBuffer.remaining());
+                // OntologyEquality
 
-                    if (source.equals(pair.get(0))) {
-                        ByteBuffer targetBuffer = client.get_cell(ns, "alignments", cell.getKey().getRow(), "target");
-                        String target = new String(targetBuffer.array(), targetBuffer.position(), targetBuffer.remaining());
+                String sourceNamespace = null;
+                String targetNamespace = null;
+                try {
+                    URL sourceURL = new URL(pair.get(0).replace("\"", ""));
+                    sourceNamespace = String.format("%s://%s%s", sourceURL.getProtocol(), sourceURL.getHost(), sourceURL.getPath());
+                    URL targetURL = new URL(pair.get(1).replace("\"", ""));
+                    targetNamespace = String.format("%s://%s%s", targetURL.getProtocol(), targetURL.getHost(), targetURL.getPath());
+                } catch (MalformedURLException e) {
+                    e.printStackTrace();
+                }
 
-                        if (target.equals(pair.get(1))) {
-                            ByteBuffer valueBuffer = client.get_cell(ns, "alignments", cell.getKey().getRow(), "value");
-                            double value = Double.valueOf(new String(valueBuffer.array(), valueBuffer.position(), valueBuffer.remaining()));
-                            if (!distanceMap.containsKey(pair.get(0))) {
-                                distanceMap.put(pair.get(0), new HashMap<String, Double>());
+                if ((sourceNamespace != null) && (targetNamespace != null)) {
+
+                    if (!sourceNamespace.equals(targetNamespace)) {
+
+                        for (Cell cell : hqlResult.getCells()) {
+                            ByteBuffer sourceBuffer = client.get_cell(ns, "alignments", cell.getKey().getRow(), "source");
+                            String source = new String(sourceBuffer.array(), sourceBuffer.position(), sourceBuffer.remaining());
+
+                            if (source.equals(pair.get(0))) {
+                                ByteBuffer targetBuffer = client.get_cell(ns, "alignments", cell.getKey().getRow(), "target");
+                                String target = new String(targetBuffer.array(), targetBuffer.position(), targetBuffer.remaining());
+
+                                if (target.equals(pair.get(1))) {
+                                    ByteBuffer valueBuffer = client.get_cell(ns, "alignments", cell.getKey().getRow(), "value");
+                                    double value = Double.valueOf(new String(valueBuffer.array(), valueBuffer.position(), valueBuffer.remaining()));
+                                    if (!distanceMap.containsKey(pair.get(0))) {
+                                        distanceMap.put(pair.get(0), new HashMap<String, Double>());
+                                    }
+                                    Map<String, Double> map = distanceMap.get(pair.get(0));
+                                    map.put(pair.get(1), value);
+                                    distanceMap.put(pair.get(0), map);
+                                }
                             }
-                            Map<String, Double> map = distanceMap.get(pair.get(0));
-                            map.put(pair.get(1), value);
-                            distanceMap.put(pair.get(0), map);
                         }
+                    } else {
+                        if (!distanceMap.containsKey(pair.get(0))) {
+                            distanceMap.put(pair.get(0), new HashMap<String, Double>());
+                        }
+                        Map<String, Double> map = distanceMap.get(pair.get(0));
+                        map.put(pair.get(1), 0.0);
+                        distanceMap.put(pair.get(0), map);
                     }
                 }
 
