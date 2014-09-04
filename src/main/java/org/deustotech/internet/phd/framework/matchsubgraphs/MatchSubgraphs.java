@@ -119,8 +119,8 @@ public class MatchSubgraphs {
 
         for (double i = 0; i < 1; i += 0.1 ) {
             for (String source : similarityMap.keySet()) {
+                List<String> linkList = goldStandard.get(source.replace(".g", "").toLowerCase());
                 for (String target : similarityMap.keySet()) {
-                    List<String> linkList = goldStandard.get(source.replace(".g", "").toLowerCase());
                     if (!source.equals(target)) {
                         String value = "no";
                         if (linkList != null) {
@@ -416,7 +416,7 @@ public class MatchSubgraphs {
 
             for (Vertex vertex: graph.getVertices()) {
                 for (Edge edge : vertex.getEdges()) {
-                    bw.write(String.format("d %s %s %s\n", vertex.getId(), edge.getTarget().getId(), edge.getLabel()));
+                    bw.write(String.format("u %s %s %s\n", vertex.getId(), edge.getTarget().getId(), edge.getLabel()));
                 }
             }
             bw.close();
