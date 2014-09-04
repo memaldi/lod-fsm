@@ -9,9 +9,7 @@ import org.deustotech.internet.phd.framework.model.Edge;
 import org.deustotech.internet.phd.framework.model.Graph;
 import org.deustotech.internet.phd.framework.model.Vertex;
 import org.hypertable.thrift.ThriftClient;
-import org.hypertable.thriftgen.Cell;
-import org.hypertable.thriftgen.ClientException;
-import org.hypertable.thriftgen.HqlResult;
+import org.hypertable.thriftgen.*;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -61,7 +59,7 @@ public class MatchSubgraphs {
             e.printStackTrace();
         }
 
-        Map<String, Map<String, Double>> similarityMap = new HashMap<>();
+        //Map<String, Map<String, Double>> similarityMap = new HashMap<>();
 
         Generator<List<String>> graphPermutations = Itertools.combinations(Itertools.iter(graphSet.iterator()), 2);
         boolean end = false;
@@ -74,6 +72,10 @@ public class MatchSubgraphs {
         } catch (IOException e) {
             e.printStackTrace();
         }
+
+        createSimilarityTable(client, ns);
+
+        List<Cell> cells = new ArrayList<>();
 
         while(!end) {
             try {
@@ -94,18 +96,80 @@ public class MatchSubgraphs {
                     double absoluteDistance =  distance / maxLength;
                     double similarity = 1 - absoluteDistance;
 
-                    System.out.println(String.format("%s - %s (%f)", sourceGraph.getName(), targetGraph.getName(), similarity));
+                    //System.out.println(String.format("%s - %s (%f)", sourceGraph.getName(), targetGraph.getName(), similarity));
 
-                    if (!similarityMap.containsKey(sourceGraph.getName())) {
+                    String keyID = UUID.randomUUID().toString();
+                    Key key = new Key();
+                    key.setRow(keyID);
+                    key.setColumn_family("source");
+                    Cell cell = new Cell();
+                    cell.setKey(key);
+
+                    try {
+                        cell.setValue(sourceGraph.getName().getBytes("UTF-8"));
+                    } catch (UnsupportedEncodingException e) {
+                        e.printStackTrace();
+                    }
+
+                    cells.add(cell);
+
+                    key = new Key();
+                    key.setRow(keyID);
+                    key.setColumn_family("target");
+                    cell = new Cell();
+                    cell.setKey(key);
+
+                    try {
+                        cell.setValue(targetGraph.getName().getBytes("UTF-8"));
+                    } catch (UnsupportedEncodingException e) {
+                        e.printStackTrace();
+                    }
+
+                    cells.add(cell);
+
+                    key = new Key();
+                    key.setRow(keyID);
+                    key.setColumn_family("threshold");
+                    cell = new Cell();
+                    cell.setKey(key);
+
+                    try {
+                        cell.setValue(String.valueOf(similarityThreshold).getBytes("UTF-8"));
+                    } catch (UnsupportedEncodingException e) {
+                        e.printStackTrace();
+                    }
+
+                    cells.add(cell);
+
+                    key = new Key();
+                    key.setRow(keyID);
+                    key.setColumn_family("value");
+                    cell = new Cell();
+                    cell.setKey(key);
+
+                    try {
+                        cell.setValue(String.valueOf(similarity).getBytes("UTF-8"));
+                    } catch (UnsupportedEncodingException e) {
+                        e.printStackTrace();
+                    }
+
+                    cells.add(cell);
+
+                    /*if (!similarityMap.containsKey(sourceGraph.getName())) {
                         similarityMap.put(sourceGraph.getName(), new HashMap<String, Double>());
                     }
                     Map<String, Double> map = similarityMap.get(sourceGraph.getName());
                     map.put(targetGraph.getName(), similarity);
                     similarityMap.put(sourceGraph.getName(), map);
-
+                    */
                 }
             } catch (NoSuchElementException e) {
                 end = true;
+                try {
+                    client.set_cells(ns, "similarity", cells);
+                } catch (TException e1) {
+                    e1.printStackTrace();
+                }
             }
         }
         //Map<Integer, Dataset> datasets = getDatasets(surveyDatasetsLocation);
@@ -115,10 +179,105 @@ public class MatchSubgraphs {
 
 
         for (double i = 0; i < 1; i += 0.1 ) {
+            graphPermutations = Itertools.combinations(Itertools.iter(graphSet.iterator()), 2);
+            end = false;
             int tp = 0;
             int fp = 0;
             int tn = 0;
             int fn = 0;
+            while(!end) {
+                try {
+                    List<String> pair = graphPermutations.next();
+                    String source = pair.get(0);
+                    String target = pair.get(1);
+                    List<String> linkList = goldStandard.get(source.replace(".g", "").toLowerCase());
+                    if (!source.equals(target)) {
+                        String value = "no";
+                        if (linkList != null) {
+                            if (linkList.contains(target.replace(".g", "").toLowerCase())) {
+                                value = "yes";
+                            }
+                        }
+
+                        Double similarity = null;
+
+                        String query = String.format("SELECT * FROM similarity WHERE source = '%s'", source);
+                        HqlResult hqlResult = client.hql_query(ns, query);
+                        if (hqlResult.getCells().size() > 0) {
+                            for (Cell cell : hqlResult.getCells()) {
+                                ByteBuffer targetBuffer = client.get_cell(ns, "similarity", cell.getKey().getRow(), "target");
+                                String stringTarget = new String(targetBuffer.array(), targetBuffer.position(), targetBuffer.remaining());
+
+                                if (stringTarget.equals(target)) {
+                                    ByteBuffer thresholdBuffer = client.get_cell(ns, "similarity", cell.getKey().getRow(), "threshold");
+                                    String stringThreshold = new String(thresholdBuffer.array(), thresholdBuffer.position(), thresholdBuffer.remaining());
+
+                                    if (Double.valueOf(stringThreshold) == similarityThreshold) {
+
+                                        ByteBuffer valueBuffer = client.get_cell(ns, "similarity", cell.getKey().getRow(), "value");
+                                        String stringValue = new String(valueBuffer.array(), valueBuffer.position(), valueBuffer.remaining());
+                                        similarity = Double.valueOf(stringValue);
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                        if (similarity == null) {
+                            query = String.format("SELECT * FROM similarity WHERE source = '%s'", source);
+                            hqlResult = client.hql_query(ns, query);
+                            if (hqlResult.getCells().size() > 0) {
+                                for (Cell cell : hqlResult.getCells()) {
+                                    ByteBuffer targetBuffer = client.get_cell(ns, "similarity", cell.getKey().getRow(), "target");
+                                    String stringTarget = new String(targetBuffer.array(), targetBuffer.position(), targetBuffer.remaining());
+
+                                    if (stringTarget.equals(target)) {
+                                        ByteBuffer thresholdBuffer = client.get_cell(ns, "similarity", cell.getKey().getRow(), "threshold");
+                                        String stringThreshold = new String(thresholdBuffer.array(), thresholdBuffer.position(), thresholdBuffer.remaining());
+
+                                        if (Double.valueOf(stringThreshold) == similarityThreshold) {
+
+                                            ByteBuffer valueBuffer = client.get_cell(ns, "similarity", cell.getKey().getRow(), "value");
+                                            String stringValue = new String(valueBuffer.array(), valueBuffer.position(), valueBuffer.remaining());
+                                            similarity = Double.valueOf(stringValue);
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        System.out.println(String.format("%s - %s (%s)", source, target, similarity));
+                        if (similarity > i && value.equals("yes")) {
+                            tp++;
+                        } else if (similarity > i && value.equals("no")) {
+                            fp++;
+                        } else if (similarity <= i && value.equals("yes")) {
+                            fn++;
+                        } else if (similarity <= i && value.equals("no")) {
+                            tn++;
+                        }
+                    }
+                } catch (NoSuchElementException e) {
+                    end = true;
+                } catch (ClientException e) {
+                    e.printStackTrace();
+                } catch (TException e) {
+                    e.printStackTrace();
+                }
+            }
+            System.out.println(String.format("Threshold: %s", i));
+
+            double precision = (double) tp / (tp + fp);
+            double recall = (double) tp / (tp + fn);
+            double f1 = 2 * precision * recall / (precision + recall);
+            double accuracy = (double) (tp + tn) / (tp + tn + fp + fn);
+
+            System.out.println(String.format("Precision: %s", precision));
+            System.out.println(String.format("Recall: %s", recall));
+            System.out.println(String.format("F1: %s", f1));
+            System.out.println(String.format("Accuracy: %s", accuracy));
+        }
+
+        /*for (double i = 0; i < 1; i += 0.1 ) {
             for (String source : similarityMap.keySet()) {
                 List<String> linkList = goldStandard.get(source.replace(".g", "").toLowerCase());
                 for (String target : similarityMap.keySet()) {
@@ -158,6 +317,36 @@ public class MatchSubgraphs {
             System.out.println(String.format("Accuracy: %s", accuracy));
 
             //String line = String.format("%s;%s;%s;");
+        }*/
+
+    }
+
+    private static void createSimilarityTable(ThriftClient client, long ns) {
+        Map columnFamilies = new HashMap();
+        Schema schema = new Schema();
+
+        ColumnFamilySpec cf = new ColumnFamilySpec();
+        cf.setName("source");
+        columnFamilies.put("source", cf);
+
+        cf = new ColumnFamilySpec();
+        cf.setName("target");
+        columnFamilies.put("target", cf);
+
+        cf = new ColumnFamilySpec();
+        cf.setName("threshold");
+        columnFamilies.put("threshold", cf);
+
+        cf = new ColumnFamilySpec();
+        cf.setName("value");
+        columnFamilies.put("value", cf);
+
+        schema.setColumn_families(columnFamilies);
+
+        try {
+            client.table_create(ns, "similarity", schema);
+        } catch (TException e) {
+            e.printStackTrace();
         }
 
     }
