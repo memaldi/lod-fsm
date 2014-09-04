@@ -112,12 +112,13 @@ public class MatchSubgraphs {
         Map<String, List<String>> goldStandard = loadGoldStandard();
         //Map<String, Integer> name2keyMap = getKeyFromName(datasets);
 
-        int tp = 0;
-        int fp = 0;
-        int tn = 0;
-        int fn = 0;
+
 
         for (double i = 0; i < 1; i += 0.1 ) {
+            int tp = 0;
+            int fp = 0;
+            int tn = 0;
+            int fn = 0;
             for (String source : similarityMap.keySet()) {
                 List<String> linkList = goldStandard.get(source.replace(".g", "").toLowerCase());
                 for (String target : similarityMap.keySet()) {
