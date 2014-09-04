@@ -74,93 +74,106 @@ public class MatchSubgraphs {
         }
 
         createSimilarityTable(client, ns);
+        String query = "SELECT * FROM similarity WHERE threshold = '0.4' LIMIT 1";
+        int resultSize = 0;
+        try {
+            HqlResult hqlResult = client.hql_query(ns, query);
+            resultSize = hqlResult.getCells().size();
+        } catch (TException e) {
+            e.printStackTrace();
+        }
 
         List<Cell> cells = new ArrayList<>();
-        while(!end) {
-            try {
-                List<String> pair = graphPermutations.next();
-                if (!pair.get(0).equals(pair.get(1))) {
-                    Graph sourceGraph = getGraph(pair.get(0), client, ns);
-                    Graph targetGraph = getGraph(pair.get(1), client, ns);
-                    List<Graph> matchedGraphs = matchGraphs(sourceGraph, targetGraph, client, ns, applyStringDistances, similarityThreshold);
-                    Graph sourceMatchedGraph = matchedGraphs.get(0);
-                    Graph targetMatchedGraph = matchedGraphs.get(1);
 
-                    double distance = getDistance(sourceMatchedGraph, targetMatchedGraph, subduePath);
-                    double maxLength = Math.max(sourceMatchedGraph.getVertices().size() + sourceMatchedGraph.getEdges().size(), targetMatchedGraph.getVertices().size() + targetMatchedGraph.getEdges().size());
-                    // TODO: check this!
-                    if (distance > maxLength) {
-                        maxLength = distance;
-                    }
-                    double absoluteDistance =  distance / maxLength;
-                    double similarity = 1 - absoluteDistance;
+        if (resultSize <= 0) {
 
-                    String keyID = UUID.randomUUID().toString();
-                    Key key = new Key();
-                    key.setRow(keyID);
-                    key.setColumn_family("source");
-                    Cell cell = new Cell();
-                    cell.setKey(key);
-
-                    try {
-                        cell.setValue(sourceGraph.getName().getBytes("UTF-8"));
-                    } catch (UnsupportedEncodingException e) {
-                        e.printStackTrace();
-                    }
-
-                    cells.add(cell);
-
-                    key = new Key();
-                    key.setRow(keyID);
-                    key.setColumn_family("target");
-                    cell = new Cell();
-                    cell.setKey(key);
-
-                    try {
-                        cell.setValue(targetGraph.getName().getBytes("UTF-8"));
-                    } catch (UnsupportedEncodingException e) {
-                        e.printStackTrace();
-                    }
-
-                    cells.add(cell);
-
-                    key = new Key();
-                    key.setRow(keyID);
-                    key.setColumn_family("threshold");
-                    cell = new Cell();
-                    cell.setKey(key);
-
-                    try {
-                        cell.setValue(String.valueOf(similarityThreshold).getBytes("UTF-8"));
-                    } catch (UnsupportedEncodingException e) {
-                        e.printStackTrace();
-                    }
-
-                    cells.add(cell);
-
-                    key = new Key();
-                    key.setRow(keyID);
-                    key.setColumn_family("value");
-                    cell = new Cell();
-                    cell.setKey(key);
-
-                    try {
-                        cell.setValue(String.valueOf(similarity).getBytes("UTF-8"));
-                    } catch (UnsupportedEncodingException e) {
-                        e.printStackTrace();
-                    }
-
-                    cells.add(cell);
-
-                }
-            } catch (NoSuchElementException e) {
-                end = true;
+            while (!end) {
                 try {
-                    client.set_cells(ns, "similarity", cells);
-                } catch (TException e1) {
-                    e1.printStackTrace();
+                    List<String> pair = graphPermutations.next();
+                    if (!pair.get(0).equals(pair.get(1))) {
+                        Graph sourceGraph = getGraph(pair.get(0), client, ns);
+                        Graph targetGraph = getGraph(pair.get(1), client, ns);
+                        List<Graph> matchedGraphs = matchGraphs(sourceGraph, targetGraph, client, ns, applyStringDistances, similarityThreshold);
+                        Graph sourceMatchedGraph = matchedGraphs.get(0);
+                        Graph targetMatchedGraph = matchedGraphs.get(1);
+
+                        double distance = getDistance(sourceMatchedGraph, targetMatchedGraph, subduePath);
+                        double maxLength = Math.max(sourceMatchedGraph.getVertices().size() + sourceMatchedGraph.getEdges().size(), targetMatchedGraph.getVertices().size() + targetMatchedGraph.getEdges().size());
+                        // TODO: check this!
+                        if (distance > maxLength) {
+                            maxLength = distance;
+                        }
+                        double absoluteDistance = distance / maxLength;
+                        double similarity = 1 - absoluteDistance;
+
+                        String keyID = UUID.randomUUID().toString();
+                        Key key = new Key();
+                        key.setRow(keyID);
+                        key.setColumn_family("source");
+                        Cell cell = new Cell();
+                        cell.setKey(key);
+
+                        try {
+                            cell.setValue(sourceGraph.getName().getBytes("UTF-8"));
+                        } catch (UnsupportedEncodingException e) {
+                            e.printStackTrace();
+                        }
+
+                        cells.add(cell);
+
+                        key = new Key();
+                        key.setRow(keyID);
+                        key.setColumn_family("target");
+                        cell = new Cell();
+                        cell.setKey(key);
+
+                        try {
+                            cell.setValue(targetGraph.getName().getBytes("UTF-8"));
+                        } catch (UnsupportedEncodingException e) {
+                            e.printStackTrace();
+                        }
+
+                        cells.add(cell);
+
+                        key = new Key();
+                        key.setRow(keyID);
+                        key.setColumn_family("threshold");
+                        cell = new Cell();
+                        cell.setKey(key);
+
+                        try {
+                            cell.setValue(String.valueOf(similarityThreshold).getBytes("UTF-8"));
+                        } catch (UnsupportedEncodingException e) {
+                            e.printStackTrace();
+                        }
+
+                        cells.add(cell);
+
+                        key = new Key();
+                        key.setRow(keyID);
+                        key.setColumn_family("value");
+                        cell = new Cell();
+                        cell.setKey(key);
+
+                        try {
+                            cell.setValue(String.valueOf(similarity).getBytes("UTF-8"));
+                        } catch (UnsupportedEncodingException e) {
+                            e.printStackTrace();
+                        }
+
+                        cells.add(cell);
+
+                    }
+                } catch (NoSuchElementException e) {
+                    end = true;
+                    try {
+                        client.set_cells(ns, "similarity", cells);
+                    } catch (TException e1) {
+                        e1.printStackTrace();
+                    }
+
                 }
-            }
+            } 
         }
         Map<String, List<String>> goldStandard = loadGoldStandard();
 
@@ -193,7 +206,7 @@ public class MatchSubgraphs {
 
                         Double similarity = null;
 
-                        String query = String.format("SELECT * FROM similarity WHERE source = '%s'", source);
+                        query = String.format("SELECT * FROM similarity WHERE source = '%s'", source);
                         HqlResult hqlResult = client.hql_query(ns, query);
                         if (hqlResult.getCells().size() > 0) {
                             for (Cell cell : hqlResult.getCells()) {
