@@ -59,8 +59,6 @@ public class MatchSubgraphs {
             e.printStackTrace();
         }
 
-        //Map<String, Map<String, Double>> similarityMap = new HashMap<>();
-
         Generator<List<String>> graphPermutations = Itertools.combinations(Itertools.iter(graphSet.iterator()), 2);
         boolean end = false;
 
@@ -95,8 +93,6 @@ public class MatchSubgraphs {
                     }
                     double absoluteDistance =  distance / maxLength;
                     double similarity = 1 - absoluteDistance;
-
-                    //System.out.println(String.format("%s - %s (%f)", sourceGraph.getName(), targetGraph.getName(), similarity));
 
                     String keyID = UUID.randomUUID().toString();
                     Key key = new Key();
@@ -155,13 +151,6 @@ public class MatchSubgraphs {
 
                     cells.add(cell);
 
-                    /*if (!similarityMap.containsKey(sourceGraph.getName())) {
-                        similarityMap.put(sourceGraph.getName(), new HashMap<String, Double>());
-                    }
-                    Map<String, Double> map = similarityMap.get(sourceGraph.getName());
-                    map.put(targetGraph.getName(), similarity);
-                    similarityMap.put(sourceGraph.getName(), map);
-                    */
                 }
             } catch (NoSuchElementException e) {
                 end = true;
@@ -172,11 +161,7 @@ public class MatchSubgraphs {
                 }
             }
         }
-        //Map<Integer, Dataset> datasets = getDatasets(surveyDatasetsLocation);
         Map<String, List<String>> goldStandard = loadGoldStandard();
-        //Map<String, Integer> name2keyMap = getKeyFromName(datasets);
-
-
 
         for (double i = 0; i < 1; i += 0.1 ) {
             graphPermutations = Itertools.combinations(Itertools.iter(graphSet.iterator()), 2);
@@ -245,7 +230,6 @@ public class MatchSubgraphs {
                                 }
                             }
                         }
-                        System.out.println(String.format("%s - %s (%s)", source, target, similarity));
                         if (similarity > i && value.equals("yes")) {
                             tp++;
                         } else if (similarity > i && value.equals("no")) {
@@ -276,48 +260,6 @@ public class MatchSubgraphs {
             System.out.println(String.format("F1: %s", f1));
             System.out.println(String.format("Accuracy: %s", accuracy));
         }
-
-        /*for (double i = 0; i < 1; i += 0.1 ) {
-            for (String source : similarityMap.keySet()) {
-                List<String> linkList = goldStandard.get(source.replace(".g", "").toLowerCase());
-                for (String target : similarityMap.keySet()) {
-                    if (!source.equals(target)) {
-                        String value = "no";
-                        if (linkList != null) {
-                            if (linkList.contains(target.replace(".g", "").toLowerCase())) {
-                                value = "yes";
-                            }
-                        }
-                        Double similarity = similarityMap.get(source).get(target);
-                        if (similarity == null) {
-                            similarity = similarityMap.get(target).get(source);
-                        }
-                        if (similarity > i && value.equals("yes")) {
-                            tp++;
-                        } else if (similarity > i && value.equals("no")) {
-                            fp++;
-                        } else if (similarity <= i && value.equals("yes")) {
-                            fn++;
-                        } else if (similarity <= i && value.equals("no")) {
-                            tn++;
-                        }
-                    }
-                }
-            }
-            System.out.println(String.format("Threshold: %s", i));
-
-            double precision = (double) tp / (tp + fp);
-            double recall = (double) tp / (tp + fn);
-            double f1 = 2 * precision * recall / (precision + recall);
-            double accuracy = (double) (tp + tn) / (tp + tn + fp + fn);
-
-            System.out.println(String.format("Precision: %s", precision));
-            System.out.println(String.format("Recall: %s", recall));
-            System.out.println(String.format("F1: %s", f1));
-            System.out.println(String.format("Accuracy: %s", accuracy));
-
-            //String line = String.format("%s;%s;%s;");
-        }*/
 
     }
 
