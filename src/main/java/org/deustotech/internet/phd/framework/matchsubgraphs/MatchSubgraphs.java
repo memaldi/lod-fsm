@@ -23,7 +23,7 @@ import java.util.*;
  * Created by mikel (m.emaldi at deusto dot es) on 20/06/14.
  */
 public class MatchSubgraphs {
-    public static void run(double similarityThreshold, String subduePath, boolean applyStringDistances, String surveyDatasetsLocation, String outputFile) {
+    public static void run(double similarityThreshold, String subduePath, boolean applyStringDistances, String surveyDatasetsLocation, String outputFile, int deep) {
         ThriftClient client = null;
         try {
             client = ThriftClient.create("localhost", 15867);
@@ -76,7 +76,6 @@ public class MatchSubgraphs {
         createSimilarityTable(client, ns);
 
         List<Cell> cells = new ArrayList<>();
-
         while(!end) {
             try {
                 List<String> pair = graphPermutations.next();
@@ -183,6 +182,12 @@ public class MatchSubgraphs {
                         if (linkList != null) {
                             if (linkList.contains(target.replace(".g", "").toLowerCase())) {
                                 value = "yes";
+                            } else if(deep > 0) {
+                                List<String> targetLinkList = goldStandard.get(target.replace(".g", "").toLowerCase());
+                                targetLinkList.retainAll(linkList);
+                                if ((double) targetLinkList.size() / Math.max(linkList.size(), targetLinkList.size()) > 0.5) {
+                                    value = "yes";
+                                }
                             }
                         }
 
@@ -394,7 +399,9 @@ public class MatchSubgraphs {
                         try {
                             ByteBuffer linkBuffer = client.get_cell(ns, "datahubgs", sline[i], "nickname");
                             String link = new String(linkBuffer.array(), linkBuffer.position(), linkBuffer.remaining());
-                            linkList.add(link);
+                            if (!link.equals("")) {
+                                linkList.add(link);
+                            }
                         } catch (TException e) {
                             e.printStackTrace();
                         }
