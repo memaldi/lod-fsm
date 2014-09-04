@@ -96,7 +96,7 @@ public class MatchSubgraphs {
                     double absoluteDistance =  distance / maxLength;
                     double similarity = 1 - absoluteDistance;
 
-                    System.out.println(String.format("%s - %s (%f)", sourceGraph.getName(), targetGraph.getName(), similarity));
+                    //System.out.println(String.format("%s - %s (%f)", sourceGraph.getName(), targetGraph.getName(), similarity));
 
                     String keyID = UUID.randomUUID().toString();
                     Key key = new Key();
@@ -215,6 +215,7 @@ public class MatchSubgraphs {
                                         ByteBuffer valueBuffer = client.get_cell(ns, "similarity", cell.getKey().getRow(), "value");
                                         String stringValue = new String(valueBuffer.array(), valueBuffer.position(), valueBuffer.remaining());
                                         similarity = Double.valueOf(stringValue);
+                                        break;
                                     }
                                 }
                             }
@@ -236,11 +237,13 @@ public class MatchSubgraphs {
                                             ByteBuffer valueBuffer = client.get_cell(ns, "similarity", cell.getKey().getRow(), "value");
                                             String stringValue = new String(valueBuffer.array(), valueBuffer.position(), valueBuffer.remaining());
                                             similarity = Double.valueOf(stringValue);
+                                            break;
                                         }
                                     }
                                 }
                             }
                         }
+                        System.out.println(String.format("%s - %s (%s)", source, target, similarity));
                         if (similarity > i && value.equals("yes")) {
                             tp++;
                         } else if (similarity > i && value.equals("no")) {
