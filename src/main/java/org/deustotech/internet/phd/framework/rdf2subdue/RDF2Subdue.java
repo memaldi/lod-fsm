@@ -105,11 +105,11 @@ public class RDF2Subdue {
 
                 for (long i = lowerLimit; i <= upperLimit; i++) {
                     try {
-                        String query = String.format("SELECT id from %s WHERE id = '%s'", dataset, i);
+                        String query = String.format("SELECT id from %s WHERE id = '%s'", dataset.replace("-", "_"), i);
                         HqlResult hqlResult = client.hql_query(ns, query);
                         if (hqlResult.getCells().size() > 0) {
                             for (Cell cell : hqlResult.getCells()) {
-                                ByteBuffer labelBuffer = client.get_cell(ns, dataset, cell.getKey().getRow(), "label");
+                                ByteBuffer labelBuffer = client.get_cell(ns, dataset.replace("-", "_"), cell.getKey().getRow(), "label");
                                 String label = new String(labelBuffer.array(), labelBuffer.position(), labelBuffer.remaining());
                                 bw.write(String.format("v %s %s\n", i, label));
                             }
@@ -132,25 +132,25 @@ public class RDF2Subdue {
 
                 for (long i = lowerLimit; i <= upperLimit; i++) {
                     try {
-                        String query = String.format("SELECT source from %s WHERE source = '%s'", dataset, i);
+                        String query = String.format("SELECT source from %s WHERE source = '%s'", dataset.replace("-", "_"), i);
                         HqlResult hqlResult = client.hql_query(ns, query);
                         for (Cell cell : hqlResult.getCells()) {
-                            ByteBuffer targetBuffer = client.get_cell(ns, dataset, cell.getKey().getRow(), "target");
+                            ByteBuffer targetBuffer = client.get_cell(ns, dataset.replace("-", "_"), cell.getKey().getRow(), "target");
                             String target = new String(targetBuffer.array(), targetBuffer.position(), targetBuffer.remaining());
                             if (Long.parseLong(target) <= upperLimit) {
-                                ByteBuffer labelBuffer = client.get_cell(ns, dataset, cell.getKey().getRow(), "label");
+                                ByteBuffer labelBuffer = client.get_cell(ns, dataset.replace("-", "_"), cell.getKey().getRow(), "label");
                                 String label = new String(labelBuffer.array(), labelBuffer.position(), labelBuffer.remaining());
                                 bw.write(String.format("d %s %s %s\n", i, target, label));
                             }
                         }
 
-                        query = String.format("SELECT target from %s WHERE target = '%s'", dataset, i);
+                        query = String.format("SELECT target from %s WHERE target = '%s'", dataset.replace("-", "_"), i);
                         hqlResult = client.hql_query(ns, query);
                         for (Cell cell : hqlResult.getCells()) {
-                            ByteBuffer sourceBuffer = client.get_cell(ns, dataset, cell.getKey().getRow(), "source");
+                            ByteBuffer sourceBuffer = client.get_cell(ns, dataset.replace("-", "_"), cell.getKey().getRow(), "source");
                             String source = new String(sourceBuffer.array(), sourceBuffer.position(), sourceBuffer.remaining());
                             if (Long.parseLong(source) < lowerLimit) {
-                                ByteBuffer labelBuffer = client.get_cell(ns, dataset, cell.getKey().getRow(), "label");
+                                ByteBuffer labelBuffer = client.get_cell(ns, dataset.replace("-", "_"), cell.getKey().getRow(), "label");
                                 String label = new String(labelBuffer.array(), labelBuffer.position(), labelBuffer.remaining());
                                 bw.write(String.format("d %s %s %s\n", source, i, label));
                             }
@@ -249,7 +249,7 @@ public class RDF2Subdue {
         schema.setColumn_families(columnFamilies);
 
         try {
-            client.table_create(ns, dataset, schema);
+            client.table_create(ns, dataset.replace("-", "_"), schema);
         } catch (TException e) {
             e.printStackTrace();
         }
@@ -333,7 +333,7 @@ public class RDF2Subdue {
                 count++;
                 if (count >= 200000) {
                     try {
-                        client.set_cells(ns, dataset, cells);
+                        client.set_cells(ns, dataset.replace("-", "_"), cells);
                         cells = new ArrayList();
                         count = 0;
                     } catch (TException e) {
@@ -352,7 +352,7 @@ public class RDF2Subdue {
         }
 
         try {
-            client.set_cells(ns, dataset, cells);
+            client.set_cells(ns, dataset.replace("-", "_"), cells);
         } catch (TException e) {
             e.printStackTrace();
         }
@@ -438,7 +438,7 @@ public class RDF2Subdue {
                     count++;
                     if (count >= 200000) {
                         try {
-                            client.set_cells(ns, dataset, cells);
+                            client.set_cells(ns, dataset.replace("-", "_"), cells);
                             cells = new ArrayList();
                             count = 0;
                         } catch (TException e) {
@@ -457,7 +457,7 @@ public class RDF2Subdue {
         }
 
         try {
-            client.set_cells(ns, dataset, cells);
+            client.set_cells(ns, dataset.replace("-", "_"), cells);
         } catch (TException e) {
             e.printStackTrace();
         }
@@ -540,7 +540,7 @@ public class RDF2Subdue {
                                     count++;
                                     if (count >= 200000) {
                                         try {
-                                            client.set_cells(ns, dataset, cells);
+                                            client.set_cells(ns, dataset.replace("-", "_"), cells);
                                             cells = new ArrayList();
                                             count = 0;
                                         } catch (TException e) {
@@ -566,7 +566,7 @@ public class RDF2Subdue {
         }
 
         try {
-            client.set_cells(ns, dataset, cells);
+            client.set_cells(ns, dataset.replace("-", "_"), cells);
         } catch (TException e) {
             e.printStackTrace();
         }
