@@ -23,11 +23,12 @@ import java.util.*;
  * Created by mikel (m.emaldi at deusto dot es) on 20/06/14.
  */
 public class MatchSubgraphs {
-    public static void run(double similarityThreshold, String subduePath, boolean applyStringDistances, String surveyDatasetsLocation, String outputFile, int deep) {
+    public static void run(double similarityThreshold, String subduePath, boolean applyStringDistances, String outputFile, int deep) {
         ThriftClient client = null;
         try {
             client = ThriftClient.create("localhost", 15867);
         } catch (TException e) {
+            e.printStackTrace();
             System.exit(1);
         }
 
@@ -65,16 +66,17 @@ public class MatchSubgraphs {
         boolean end = false;
 
         File file = new File(outputFile);
-        BufferedWriter bw;
+        BufferedWriter bw = null;
         try {
             bw = new BufferedWriter(new FileWriter(file));
-
+            String line = "Ontology Matching Threshold;Similarity Threshold;Precision;Recall;F1;Accuracy\n";
+            bw.write(line);
         } catch (IOException e) {
             e.printStackTrace();
         }
 
         createSimilarityTable(client, ns);
-        String query = "SELECT * FROM similarity WHERE threshold = '0.4' LIMIT 1";
+        String query = String.format("SELECT * FROM similarity WHERE threshold = '%s' LIMIT 1", similarityThreshold);
         int resultSize = 0;
         try {
             HqlResult hqlResult = client.hql_query(ns, query);
@@ -279,6 +281,18 @@ public class MatchSubgraphs {
             System.out.println(String.format("Recall: %s", recall));
             System.out.println(String.format("F1: %s", f1));
             System.out.println(String.format("Accuracy: %s", accuracy));
+
+            String line = String.format("%s;%s;%s;%s;%s;%s\n", similarityThreshold, i, precision, recall, f1, accuracy);
+            try {
+                bw.write(line);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+        try {
+            bw.close();
+        } catch (IOException e) {
+            e.printStackTrace();
         }
 
     }

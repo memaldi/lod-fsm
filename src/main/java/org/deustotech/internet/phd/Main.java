@@ -50,7 +50,7 @@ public class Main {
                 TestDistances.run(args[1]);
                 break;
             case "matchsubgraphs":
-                MatchSubgraphs.run(Double.parseDouble(args[1]), args[2], Boolean.parseBoolean(args[3]), args[4], args[5], Integer.parseInt(args[6]));
+                MatchSubgraphs.run(Double.parseDouble(args[1]), args[2], Boolean.parseBoolean(args[3]), args[4], Integer.parseInt(args[5]));
                 break;
             case "loaddatahubgs":
                 LoadDataHubGS.run(args[1]);
