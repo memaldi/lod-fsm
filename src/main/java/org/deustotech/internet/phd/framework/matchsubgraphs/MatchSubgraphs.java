@@ -198,7 +198,7 @@ public class MatchSubgraphs {
                             if (linkList.contains(target.replace(".g", "").toLowerCase())) {
                                 value = "yes";
                             } else if(deep > 0) {
-                                List<String> targetLinkList = goldStandard.get(target.replace(".g", "").toLowerCase());
+                                List<String> targetLinkList = new ArrayList<String>(goldStandard.get(target.replace(".g", "").toLowerCase()));
                                 targetLinkList.retainAll(linkList);
                                 if ((double) targetLinkList.size() / Math.max(linkList.size(), targetLinkList.size()) > 0.5) {
                                     value = "yes";
@@ -276,6 +276,11 @@ public class MatchSubgraphs {
             double recall = (double) tp / (tp + fn);
             double f1 = 2 * precision * recall / (precision + recall);
             double accuracy = (double) (tp + tn) / (tp + tn + fp + fn);
+
+            System.out.println(String.format("True positives: %s", tp));
+            System.out.println(String.format("False positives: %s", fp));
+            System.out.println(String.format("True negatives: %s", tn));
+            System.out.println(String.format("False negatives: %s", fn));
 
             System.out.println(String.format("Precision: %s", precision));
             System.out.println(String.format("Recall: %s", recall));
