@@ -28,7 +28,7 @@ public class MatchSubgraphs {
 
     private static String [] range = new String[] {"0.0", "0.1", "0.2", "0.3", "0.4", "0.5", "0.6", "0.7", "0.8", "0.9"};
 
-    public static void run(double similarityThreshold, String subduePath, boolean applyStringDistances, String outputFile, int deep) {
+    public static void run(String subduePath, boolean applyStringDistances, String outputFile, int deep) {
         ThriftClient client = null;
         try {
             client = ThriftClient.create("localhost", 15867);
