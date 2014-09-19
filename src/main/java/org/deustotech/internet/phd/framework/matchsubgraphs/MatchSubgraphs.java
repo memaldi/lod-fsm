@@ -14,15 +14,20 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.*;
+import java.math.BigDecimal;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.ByteBuffer;
+import java.text.DecimalFormat;
 import java.util.*;
 
 /**
  * Created by mikel (m.emaldi at deusto dot es) on 20/06/14.
  */
 public class MatchSubgraphs {
+
+    private static String [] range = new String[] {"0.0", "0.1", "0.2", "0.3", "0.4", "0.5", "0.6", "0.7", "0.8", "0.9"};
+
     public static void run(double similarityThreshold, String subduePath, boolean applyStringDistances, String outputFile, int deep) {
         ThriftClient client = null;
         try {
@@ -76,7 +81,8 @@ public class MatchSubgraphs {
         }
 
         createSimilarityTable(client, ns);
-        for (double sim = 0; sim < 1; sim += 0.1 ) {
+        for (int j = 0; j < 10; j += 1 ) {
+            double sim = Double.parseDouble(range[j]);
             boolean end = false;
             Generator<List<String>> graphPermutations = Itertools.combinations(Itertools.iter(graphSet.iterator()), 2);
             String query = String.format("SELECT * FROM similarity WHERE threshold = '%s' LIMIT 1", sim);
@@ -182,7 +188,8 @@ public class MatchSubgraphs {
             }
             Map<String, List<String>> goldStandard = loadGoldStandard();
 
-            for (double i = 0; i < 1; i += 0.1) {
+            for (int k = 0; k < 10; k += 1) {
+                double i = Double.parseDouble(range[k]);
                 graphPermutations = Itertools.combinations(Itertools.iter(graphSet.iterator()), 2);
                 end = false;
                 int tp = 0;
