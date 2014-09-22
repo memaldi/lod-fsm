@@ -214,6 +214,8 @@ public class MatchSubgraphs {
                                         if ((double) targetLinkList.size() / Math.max(linkList.size(), targetLinkList.size()) > 0.5) {
                                             value = "yes";
                                         }
+                                    } else {
+                                        continue;
                                     }
 
                                 }
