@@ -209,10 +209,13 @@ public class MatchSubgraphs {
                                     value = "yes";
                                 } else if (deep > 0) {
                                     List<String> targetLinkList = new ArrayList<String>(goldStandard.get(target.replace(".g", "").toLowerCase()));
-                                    targetLinkList.retainAll(linkList);
-                                    if ((double) targetLinkList.size() / Math.max(linkList.size(), targetLinkList.size()) > 0.5) {
-                                        value = "yes";
+                                    if (targetLinkList != null) {
+                                        targetLinkList.retainAll(linkList);
+                                        if ((double) targetLinkList.size() / Math.max(linkList.size(), targetLinkList.size()) > 0.5) {
+                                            value = "yes";
+                                        }
                                     }
+
                                 }
                             }
 
