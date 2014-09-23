@@ -218,6 +218,8 @@ public class MatchSubgraphs {
                                         } else {
                                             continue;
                                         }
+                                    } else {
+                                        continue;
                                     }
 
                                 }
