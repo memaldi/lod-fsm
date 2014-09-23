@@ -208,14 +208,16 @@ public class MatchSubgraphs {
                                 if (linkList.contains(target.replace(".g", "").toLowerCase())) {
                                     value = "yes";
                                 } else if (deep > 0) {
-                                    List<String> targetLinkList = new ArrayList<String>(goldStandard.get(target.replace(".g", "").toLowerCase()));
-                                    if (targetLinkList != null) {
-                                        targetLinkList.retainAll(linkList);
-                                        if ((double) targetLinkList.size() / Math.max(linkList.size(), targetLinkList.size()) > 0.5) {
-                                            value = "yes";
+                                    if (goldStandard.get(target.replace(".g", "").toLowerCase()) != null) {
+                                        List<String> targetLinkList = new ArrayList<String>(goldStandard.get(target.replace(".g", "").toLowerCase()));
+                                        if (targetLinkList != null) {
+                                            targetLinkList.retainAll(linkList);
+                                            if ((double) targetLinkList.size() / Math.max(linkList.size(), targetLinkList.size()) > 0.5) {
+                                                value = "yes";
+                                            }
+                                        } else {
+                                            continue;
                                         }
-                                    } else {
-                                        continue;
                                     }
 
                                 }
