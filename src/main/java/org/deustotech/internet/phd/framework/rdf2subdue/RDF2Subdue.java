@@ -254,12 +254,6 @@ public class RDF2Subdue {
             e.printStackTrace();
         }
 
-        long offsetQ1 = 0;
-        Jedis jedis = new Jedis("localhost");
-        /*if (jedis.exists(String.format("rdf2subdue:%s:offset", dataset))) {
-            offsetQ1 = Long.parseLong(jedis.get((String.format("rdf2subdue:%s:offset", dataset))));
-        }*/
-
         VirtGraph graph = new VirtGraph("http://" + dataset, connectionURL.toString(), prop.getProperty("virtuoso_user"), prop.getProperty("virtuoso_password"));
         /* Query query = QueryFactory.create(String.format("SELECT DISTINCT ?s ?class WHERE {?s a ?class} ORDER BY ?S OFFSET %s LIMIT %s", offsetQ1, LIMIT));
         VirtuosoQueryExecution vqe = VirtuosoQueryExecutionFactory.create(query, graph);
@@ -267,119 +261,34 @@ public class RDF2Subdue {
         logger.info("Generating vertices...");
 
         long id = 1;
-        long count = 0;
-        List cells = new ArrayList();
-        boolean end = false;
-        while (!end) {
-            Query query = QueryFactory.create(String.format("SELECT DISTINCT ?s ?class WHERE {?s a ?class} OFFSET %s LIMIT %s", offsetQ1, LIMIT));
-            VirtuosoQueryExecution vqe = VirtuosoQueryExecutionFactory.create(query, graph);
-            ResultSet results = vqe.execSelect();
 
-            while (results.hasNext()) {
-                QuerySolution result = results.next();
-                String subject = result.getResource("s").getURI();
-                String clazz = result.getResource("class").getURI();
+        Jedis jedis = new Jedis("localhost");
+        boolean end;
+        long count;
+        List cells;
+        if (!jedis.exists(String.format("rdf2subdue:%s:q1", dataset))) {
 
-                jedis.lpush(String.format("rdf2subdue:%s:vertex:%s", dataset, subject), String.valueOf(id));
+            long offsetQ1 = 0;
 
-                Key key = null;
-                Cell cell = null;
-
-                String keyId = UUID.randomUUID().toString();
-
-                key = new Key();
-                key.setRow(keyId);
-                key.setColumn_family("id");
-                cell = new Cell();
-                cell.setKey(key);
-
-                try {
-                    cell.setValue(String.valueOf(id).getBytes("UTF-8"));
-                } catch (UnsupportedEncodingException e) {
-                    e.printStackTrace();
-                }
-
-                cells.add(cell);
-
-                key = new Key();
-                key.setRow(keyId);
-                key.setColumn_family("label");
-                cell = new Cell();
-                cell.setKey(key);
-                try {
-                    cell.setValue(String.format("<%s>", clazz).getBytes("UTF-8"));
-                } catch (UnsupportedEncodingException e) {
-                    e.printStackTrace();
-                }
-                cells.add(cell);
-
-                key = new Key();
-                key.setRow(keyId);
-                key.setColumn_family("type");
-                cell = new Cell();
-                cell.setKey(key);
-                try {
-                    cell.setValue("vertex".getBytes("UTF-8"));
-                } catch (UnsupportedEncodingException e) {
-                    e.printStackTrace();
-                }
-                cells.add(cell);
-
-                id++;
-
-
-                //jedis.set(String.format("rdf2subdue:%s:offset", dataset), String.valueOf(offset));
-
-                count++;
-                if (count >= 200000) {
-                    try {
-                        client.set_cells(ns, dataset.replace("-", "_"), cells);
-                        cells = new ArrayList();
-                        count = 0;
-                    } catch (TException e) {
-                        e.printStackTrace();
-                    }
-                }
+            if (jedis.exists(String.format("rdf2subdue:%s:offsetQ1", dataset))) {
+                offsetQ1 = Long.parseLong(jedis.get((String.format("rdf2subdue:%s:offsetQ1", dataset))));
+                id = Long.parseLong(jedis.get(String.format("rdf2subdue:%s:maxID", dataset)));
             }
 
-            if (results.getRowNumber() <= 0) {
-                end = true;
-            }
+            count = 0;
+            cells = new ArrayList();
+            end = false;
+            while (!end) {
+                Query query = QueryFactory.create(String.format("SELECT DISTINCT ?s ?class WHERE {?s a ?class} OFFSET %s LIMIT %s", offsetQ1, LIMIT));
+                VirtuosoQueryExecution vqe = VirtuosoQueryExecutionFactory.create(query, graph);
+                ResultSet results = vqe.execSelect();
 
-            vqe.close();
-            offsetQ1 += LIMIT;
+                while (results.hasNext()) {
+                    QuerySolution result = results.next();
+                    String subject = result.getResource("s").getURI();
+                    String clazz = result.getResource("class").getURI();
 
-        }
-
-        try {
-            client.set_cells(ns, dataset.replace("-", "_"), cells);
-        } catch (TException e) {
-            e.printStackTrace();
-        }
-
-
-        end = false;
-
-        count = 0;
-        cells = new ArrayList();
-        int offsetQ2 = 0;
-        while (!end) {
-
-            Query query = QueryFactory.create(String.format("SELECT DISTINCT ?o WHERE { ?s ?p ?o . FILTER EXISTS { ?s a ?class } . FILTER NOT EXISTS { ?o ?p2 ?o2 } } OFFSET %s LIMIT %s", offsetQ2, LIMIT));
-            VirtuosoQueryExecution vqe = VirtuosoQueryExecutionFactory.create(query, graph);
-            ResultSet results = vqe.execSelect();
-
-            long literalHash = 0;
-            while (results.hasNext()) {
-                QuerySolution result = results.next();
-                String object = result.get("o").toString();
-
-                if (jedis.exists(String.format("rdf2subdue:%s:vertex:%s", dataset, object))) {
-                    List<Long> idList = new ArrayList<>();
-                    idList.add(id);
-                    for (Long item : idList) {
-                        jedis.lpush(String.format("rdf2subdue:%s:vertex:%s", dataset, object), String.valueOf(item));
-                    }
+                    jedis.lpush(String.format("rdf2subdue:%s:vertex:%s", dataset, subject), String.valueOf(id));
 
                     Key key = null;
                     Cell cell = null;
@@ -400,26 +309,17 @@ public class RDF2Subdue {
 
                     cells.add(cell);
 
-                    if (result.get("o").isLiteral()) {
-                        //object = String.format("\"%s\"", object);
-                        object = String.valueOf(literalHash);
-                        literalHash++;
-                    } else {
-                        object = String.format("<%s>", object);
-                    }
-
                     key = new Key();
                     key.setRow(keyId);
                     key.setColumn_family("label");
                     cell = new Cell();
                     cell.setKey(key);
                     try {
-                        cell.setValue(object.getBytes("UTF-8"));
+                        cell.setValue(String.format("<%s>", clazz).getBytes("UTF-8"));
                     } catch (UnsupportedEncodingException e) {
                         e.printStackTrace();
                     }
                     cells.add(cell);
-
 
                     key = new Key();
                     key.setRow(keyId);
@@ -435,6 +335,10 @@ public class RDF2Subdue {
 
                     id++;
 
+
+
+                    jedis.set(String.format("rdf2subdue:%s:maxID", dataset), String.valueOf(id));
+
                     count++;
                     if (count >= 200000) {
                         try {
@@ -446,130 +350,268 @@ public class RDF2Subdue {
                         }
                     }
                 }
+
+                if (results.getRowNumber() <= 0) {
+                    end = true;
+                }
+
+                vqe.close();
+                offsetQ1 += LIMIT;
+
+                jedis.set(String.format("rdf2subdue:%s:offsetQ1", dataset), String.valueOf(offsetQ1));
+
             }
 
-            if (results.getRowNumber() <= 0) {
-                end = true;
+            try {
+                client.set_cells(ns, dataset.replace("-", "_"), cells);
+            } catch (TException e) {
+                e.printStackTrace();
             }
 
-            offsetQ2 += LIMIT;
-            vqe.close();
         }
 
-        try {
-            client.set_cells(ns, dataset.replace("-", "_"), cells);
-        } catch (TException e) {
-            e.printStackTrace();
-        }
-
+        jedis.set(String.format("rdf2subdue:%s:q1", dataset), "1");
 
         end = false;
+
         count = 0;
         cells = new ArrayList();
-        int offsetQ3 = 0;
+        if (!jedis.exists(String.format("rdf2subdue:%s:q2", dataset))) {
+            long offsetQ2 = 0;
 
-        while (!end) {
+            if (jedis.exists(String.format("rdf2subdue:%s:offsetQ2", dataset))) {
+                offsetQ2 = Long.parseLong(jedis.get((String.format("rdf2subdue:%s:offsetQ2", dataset))));
+                id = Long.parseLong(jedis.get(String.format("rdf2subdue:%s:maxID", dataset)));
+            }
 
-            Query query = QueryFactory.create(String.format("SELECT DISTINCT ?s ?p ?o WHERE { ?s ?p ?o . FILTER EXISTS { ?s a ?class } } OFFSET %s LIMIT %s", offsetQ3, LIMIT));
-            VirtuosoQueryExecution vqe = VirtuosoQueryExecutionFactory.create(query, graph);
-            ResultSet results = vqe.execSelect();
+            while (!end) {
 
-            while (results.hasNext()) {
-                QuerySolution result = results.next();
-                String predicate = result.get("p").toString();
-                if (!predicate.equals(RDF.type.getURI())) {
-                    List<String> sourceIdList = jedis.lrange(String.format("rdf2subdue:%s:vertex:%s", dataset, result.get("s").toString()), 0, jedis.llen(String.format("rdf2subdue:%s:vertex:%s", dataset, result.get("s").toString())));
-                    if (sourceIdList != null) {
-                        for (String sourceId : sourceIdList) {
-                            List<String> targetIdList = jedis.lrange(String.format("rdf2subdue:%s:vertex:%s", dataset, result.get("o").toString()), 0, jedis.llen(String.format("rdf2subdue:%s:vertex:%s", dataset, result.get("o").toString())));
-                            if (targetIdList != null) {
-                                for (String targetId : targetIdList) {
-                                    Key key = null;
-                                    Cell cell = null;
+                Query query = QueryFactory.create(String.format("SELECT DISTINCT ?o WHERE { ?s ?p ?o . FILTER EXISTS { ?s a ?class } . FILTER NOT EXISTS { ?o ?p2 ?o2 } } OFFSET %s LIMIT %s", offsetQ2, LIMIT));
+                VirtuosoQueryExecution vqe = VirtuosoQueryExecutionFactory.create(query, graph);
+                ResultSet results = vqe.execSelect();
 
-                                    String keyId = UUID.randomUUID().toString();
+                long literalHash = 0;
+                while (results.hasNext()) {
+                    QuerySolution result = results.next();
+                    String object = result.get("o").toString();
 
-                                    key = new Key();
-                                    key.setRow(keyId);
-                                    key.setColumn_family("source");
-                                    cell = new Cell();
-                                    cell.setKey(key);
-                                    try {
-                                        cell.setValue(String.valueOf(sourceId).getBytes("UTF-8"));
-                                    } catch (UnsupportedEncodingException e) {
-                                        e.printStackTrace();
-                                    }
-                                    cells.add(cell);
+                    if (jedis.exists(String.format("rdf2subdue:%s:vertex:%s", dataset, object))) {
+                        List<Long> idList = new ArrayList<>();
+                        idList.add(id);
+                        for (Long item : idList) {
+                            jedis.lpush(String.format("rdf2subdue:%s:vertex:%s", dataset, object), String.valueOf(item));
+                        }
 
-                                    key = new Key();
-                                    key.setRow(keyId);
-                                    key.setColumn_family("target");
-                                    cell = new Cell();
-                                    cell.setKey(key);
-                                    try {
-                                        cell.setValue(String.valueOf(targetId).getBytes("UTF-8"));
-                                    } catch (UnsupportedEncodingException e) {
-                                        e.printStackTrace();
-                                    }
-                                    cells.add(cell);
+                        Key key = null;
+                        Cell cell = null;
 
-                                    key = new Key();
-                                    key.setRow(keyId);
-                                    key.setColumn_family("label");
-                                    cell = new Cell();
-                                    cell.setKey(key);
-                                    try {
-                                        cell.setValue(String.format("<%s>", predicate).getBytes("UTF-8"));
-                                    } catch (UnsupportedEncodingException e) {
-                                        e.printStackTrace();
-                                    }
-                                    cells.add(cell);
+                        String keyId = UUID.randomUUID().toString();
 
-                                    key = new Key();
-                                    key.setRow(keyId);
-                                    key.setColumn_family("type");
-                                    cell = new Cell();
-                                    cell.setKey(key);
-                                    try {
-                                        cell.setValue("edge".getBytes("UTF-8"));
-                                    } catch (UnsupportedEncodingException e) {
-                                        e.printStackTrace();
-                                    }
-                                    cells.add(cell);
+                        key = new Key();
+                        key.setRow(keyId);
+                        key.setColumn_family("id");
+                        cell = new Cell();
+                        cell.setKey(key);
 
-                                    count++;
-                                    if (count >= 200000) {
+                        try {
+                            cell.setValue(String.valueOf(id).getBytes("UTF-8"));
+                        } catch (UnsupportedEncodingException e) {
+                            e.printStackTrace();
+                        }
+
+                        cells.add(cell);
+
+                        if (result.get("o").isLiteral()) {
+                            //object = String.format("\"%s\"", object);
+                            object = String.valueOf(literalHash);
+                            literalHash++;
+                        } else {
+                            object = String.format("<%s>", object);
+                        }
+
+                        key = new Key();
+                        key.setRow(keyId);
+                        key.setColumn_family("label");
+                        cell = new Cell();
+                        cell.setKey(key);
+                        try {
+                            cell.setValue(object.getBytes("UTF-8"));
+                        } catch (UnsupportedEncodingException e) {
+                            e.printStackTrace();
+                        }
+                        cells.add(cell);
+
+
+                        key = new Key();
+                        key.setRow(keyId);
+                        key.setColumn_family("type");
+                        cell = new Cell();
+                        cell.setKey(key);
+                        try {
+                            cell.setValue("vertex".getBytes("UTF-8"));
+                        } catch (UnsupportedEncodingException e) {
+                            e.printStackTrace();
+                        }
+                        cells.add(cell);
+
+                        id++;
+
+                        jedis.set(String.format("rdf2subdue:%s:maxID", dataset), String.valueOf(id));
+
+                        count++;
+                        if (count >= 200000) {
+                            try {
+                                client.set_cells(ns, dataset.replace("-", "_"), cells);
+                                cells = new ArrayList();
+                                count = 0;
+                            } catch (TException e) {
+                                e.printStackTrace();
+                            }
+                        }
+                    }
+                }
+
+                if (results.getRowNumber() <= 0) {
+                    end = true;
+                }
+
+                offsetQ2 += LIMIT;
+
+                jedis.set(String.format("rdf2subdue:%s:offsetQ2", dataset), String.valueOf(offsetQ2));
+
+                vqe.close();
+            }
+
+            try {
+                client.set_cells(ns, dataset.replace("-", "_"), cells);
+            } catch (TException e) {
+                e.printStackTrace();
+            }
+
+        }
+
+        jedis.set(String.format("rdf2subdue:%s:q2", dataset), "1");
+
+        if (!jedis.exists(String.format("rdf2subdue:%s:q3", dataset))) {
+
+            end = false;
+            count = 0;
+            cells = new ArrayList();
+            long offsetQ3 = 0;
+
+            if (jedis.exists(String.format("rdf2subdue:%s:offsetQ3", dataset))) {
+                offsetQ3 = Long.parseLong(jedis.get((String.format("rdf2subdue:%s:offsetQ3", dataset))));
+            }
+
+            while (!end) {
+
+                Query query = QueryFactory.create(String.format("SELECT DISTINCT ?s ?p ?o WHERE { ?s ?p ?o . FILTER EXISTS { ?s a ?class } } OFFSET %s LIMIT %s", offsetQ3, LIMIT));
+                VirtuosoQueryExecution vqe = VirtuosoQueryExecutionFactory.create(query, graph);
+                ResultSet results = vqe.execSelect();
+
+                while (results.hasNext()) {
+                    QuerySolution result = results.next();
+                    String predicate = result.get("p").toString();
+                    if (!predicate.equals(RDF.type.getURI())) {
+                        List<String> sourceIdList = jedis.lrange(String.format("rdf2subdue:%s:vertex:%s", dataset, result.get("s").toString()), 0, jedis.llen(String.format("rdf2subdue:%s:vertex:%s", dataset, result.get("s").toString())));
+                        if (sourceIdList != null) {
+                            for (String sourceId : sourceIdList) {
+                                List<String> targetIdList = jedis.lrange(String.format("rdf2subdue:%s:vertex:%s", dataset, result.get("o").toString()), 0, jedis.llen(String.format("rdf2subdue:%s:vertex:%s", dataset, result.get("o").toString())));
+                                if (targetIdList != null) {
+                                    for (String targetId : targetIdList) {
+                                        Key key = null;
+                                        Cell cell = null;
+
+                                        String keyId = UUID.randomUUID().toString();
+
+                                        key = new Key();
+                                        key.setRow(keyId);
+                                        key.setColumn_family("source");
+                                        cell = new Cell();
+                                        cell.setKey(key);
                                         try {
-                                            client.set_cells(ns, dataset.replace("-", "_"), cells);
-                                            cells = new ArrayList();
-                                            count = 0;
-                                        } catch (TException e) {
+                                            cell.setValue(String.valueOf(sourceId).getBytes("UTF-8"));
+                                        } catch (UnsupportedEncodingException e) {
                                             e.printStackTrace();
                                         }
-                                    }
+                                        cells.add(cell);
 
+                                        key = new Key();
+                                        key.setRow(keyId);
+                                        key.setColumn_family("target");
+                                        cell = new Cell();
+                                        cell.setKey(key);
+                                        try {
+                                            cell.setValue(String.valueOf(targetId).getBytes("UTF-8"));
+                                        } catch (UnsupportedEncodingException e) {
+                                            e.printStackTrace();
+                                        }
+                                        cells.add(cell);
+
+                                        key = new Key();
+                                        key.setRow(keyId);
+                                        key.setColumn_family("label");
+                                        cell = new Cell();
+                                        cell.setKey(key);
+                                        try {
+                                            cell.setValue(String.format("<%s>", predicate).getBytes("UTF-8"));
+                                        } catch (UnsupportedEncodingException e) {
+                                            e.printStackTrace();
+                                        }
+                                        cells.add(cell);
+
+                                        key = new Key();
+                                        key.setRow(keyId);
+                                        key.setColumn_family("type");
+                                        cell = new Cell();
+                                        cell.setKey(key);
+                                        try {
+                                            cell.setValue("edge".getBytes("UTF-8"));
+                                        } catch (UnsupportedEncodingException e) {
+                                            e.printStackTrace();
+                                        }
+                                        cells.add(cell);
+
+                                        count++;
+                                        if (count >= 200000) {
+                                            try {
+                                                client.set_cells(ns, dataset.replace("-", "_"), cells);
+                                                cells = new ArrayList();
+                                                count = 0;
+                                            } catch (TException e) {
+                                                e.printStackTrace();
+                                            }
+                                        }
+
+                                    }
                                 }
                             }
                         }
                     }
                 }
+
+                int rowNumber = results.getRowNumber();
+
+                if (results.getRowNumber() <= 0) {
+                    end = true;
+                }
+
+                offsetQ3 += LIMIT;
+
+                jedis.set(String.format("rdf2subdue:%s:offsetQ3", dataset), String.valueOf(offsetQ3));
+
+                vqe.close();
             }
 
-            int rowNumber = results.getRowNumber();
-
-            if (results.getRowNumber() <= 0) {
-                end = true;
+            try {
+                client.set_cells(ns, dataset.replace("-", "_"), cells);
+            } catch (TException e) {
+                e.printStackTrace();
             }
 
-            offsetQ3 += LIMIT;
-            vqe.close();
         }
 
-        try {
-            client.set_cells(ns, dataset.replace("-", "_"), cells);
-        } catch (TException e) {
-            e.printStackTrace();
-        }
+        jedis.set(String.format("rdf2subdue:%s:q3", dataset), "1");
 
         try {
             client.namespace_close(ns);
