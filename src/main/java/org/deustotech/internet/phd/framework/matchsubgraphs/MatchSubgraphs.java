@@ -28,7 +28,14 @@ public class MatchSubgraphs {
 
     private static String [] range = new String[] {"0.0", "0.1", "0.2", "0.3", "0.4", "0.5", "0.6", "0.7", "0.8", "0.9"};
 
+    private static List<String> commontOntologiesList = new ArrayList<>();
+
     public static void run(String subduePath, boolean applyStringDistances, String outputFile, int deep) {
+
+        commontOntologiesList.add("http://purl.org/dc/terms");
+        commontOntologiesList.add("http://www.w3.org/2004/02/skos/core");
+        commontOntologiesList.add("http://purl.org/dc/elements/1.1");
+
         ThriftClient client = null;
         try {
             client = ThriftClient.create("localhost", 15867);
@@ -751,7 +758,9 @@ public class MatchSubgraphs {
 
                 if ((sourceNamespace != null) && (targetNamespace != null)) {
 
-                    if (!sourceNamespace.equals(targetNamespace)) {
+                    // Check in cross domain ontology list
+
+                    if (!sourceNamespace.equals(targetNamespace) || commontOntologiesList.contains(sourceNamespace)) {
 
                         for (Cell cell : hqlResult.getCells()) {
                             ByteBuffer sourceBuffer = client.get_cell(ns, "alignments", cell.getKey().getRow(), "source");
