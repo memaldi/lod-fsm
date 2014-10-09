@@ -394,78 +394,79 @@ public class RDF2Subdue {
                 while (results.hasNext()) {
                     QuerySolution result = results.next();
                     String object = result.get("o").toString();
+                    if (result.get("o").isLiteral()) {
+                        if (!jedis.exists(String.format("rdf2subdue:%s:vertex:%s", dataset, object))) {
+                            List<Long> idList = new ArrayList<>();
+                            idList.add(id);
+                            for (Long item : idList) {
+                                jedis.lpush(String.format("rdf2subdue:%s:vertex:%s", dataset, object), String.valueOf(item));
+                            }
 
-                    if (jedis.exists(String.format("rdf2subdue:%s:vertex:%s", dataset, object))) {
-                        List<Long> idList = new ArrayList<>();
-                        idList.add(id);
-                        for (Long item : idList) {
-                            jedis.lpush(String.format("rdf2subdue:%s:vertex:%s", dataset, object), String.valueOf(item));
-                        }
+                            Key key = null;
+                            Cell cell = null;
 
-                        Key key = null;
-                        Cell cell = null;
+                            String keyId = UUID.randomUUID().toString();
 
-                        String keyId = UUID.randomUUID().toString();
+                            key = new Key();
+                            key.setRow(keyId);
+                            key.setColumn_family("id");
+                            cell = new Cell();
+                            cell.setKey(key);
 
-                        key = new Key();
-                        key.setRow(keyId);
-                        key.setColumn_family("id");
-                        cell = new Cell();
-                        cell.setKey(key);
-
-                        try {
-                            cell.setValue(String.valueOf(id).getBytes("UTF-8"));
-                        } catch (UnsupportedEncodingException e) {
-                            e.printStackTrace();
-                        }
-
-                        cells.add(cell);
-
-                        if (result.get("o").isLiteral()) {
-                            //object = String.format("\"%s\"", object);
-                            object = String.valueOf(literalHash);
-                            literalHash++;
-                        } else {
-                            object = String.format("<%s>", object);
-                        }
-
-                        key = new Key();
-                        key.setRow(keyId);
-                        key.setColumn_family("label");
-                        cell = new Cell();
-                        cell.setKey(key);
-                        try {
-                            cell.setValue(object.getBytes("UTF-8"));
-                        } catch (UnsupportedEncodingException e) {
-                            e.printStackTrace();
-                        }
-                        cells.add(cell);
-
-
-                        key = new Key();
-                        key.setRow(keyId);
-                        key.setColumn_family("type");
-                        cell = new Cell();
-                        cell.setKey(key);
-                        try {
-                            cell.setValue("vertex".getBytes("UTF-8"));
-                        } catch (UnsupportedEncodingException e) {
-                            e.printStackTrace();
-                        }
-                        cells.add(cell);
-
-                        id++;
-
-                        jedis.set(String.format("rdf2subdue:%s:maxID", dataset), String.valueOf(id));
-
-                        count++;
-                        if (count >= 200000) {
                             try {
-                                client.set_cells(ns, dataset.replace("-", "_"), cells);
-                                cells = new ArrayList();
-                                count = 0;
-                            } catch (TException e) {
+                                cell.setValue(String.valueOf(id).getBytes("UTF-8"));
+                            } catch (UnsupportedEncodingException e) {
                                 e.printStackTrace();
+                            }
+
+                            cells.add(cell);
+
+                            if (result.get("o").isLiteral()) {
+                                //object = String.format("\"%s\"", object);
+                                object = String.valueOf(literalHash);
+                                literalHash++;
+                            } else {
+                                object = String.format("<%s>", object);
+                            }
+
+                            key = new Key();
+                            key.setRow(keyId);
+                            key.setColumn_family("label");
+                            cell = new Cell();
+                            cell.setKey(key);
+                            try {
+                                cell.setValue(object.getBytes("UTF-8"));
+                            } catch (UnsupportedEncodingException e) {
+                                e.printStackTrace();
+                            }
+                            cells.add(cell);
+
+
+                            key = new Key();
+                            key.setRow(keyId);
+                            key.setColumn_family("type");
+                            cell = new Cell();
+                            cell.setKey(key);
+                            try {
+                                cell.setValue("vertex".getBytes("UTF-8"));
+                            } catch (UnsupportedEncodingException e) {
+                                e.printStackTrace();
+                            }
+                            cells.add(cell);
+
+                            id++;
+
+                            jedis.set(String.format("rdf2subdue:%s:maxID", dataset), String.valueOf(id));
+
+                            count++;
+                            if (count >= 200000) {
+                                try {
+                                    client.set_cells(ns, dataset.replace("-", "_"), cells);
+                                    cells = new ArrayList();
+                                    count = 0;
+                                } catch (TException e) {
+                                    e.printStackTrace();
+                                }
                             }
                         }
                     }
