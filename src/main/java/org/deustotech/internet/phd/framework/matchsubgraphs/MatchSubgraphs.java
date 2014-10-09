@@ -87,9 +87,22 @@ public class MatchSubgraphs {
             e.printStackTrace();
         }
 
+        File detailsFile = new File("details.txt");
+        BufferedWriter detailsBW = null;
+        try {
+            detailsBW = new BufferedWriter(new FileWriter(detailsFile));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
         createSimilarityTable(client, ns);
         for (int j = 0; j < 10; j += 1 ) {
             double sim = Double.parseDouble(range[j]);
+            try {
+                detailsBW.write(String.format("Ontology Matching Threshold: %s\n", sim));
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
             boolean end = false;
             Generator<List<String>> graphPermutations = Itertools.combinations(Itertools.iter(graphSet.iterator()), 2);
             String query = String.format("SELECT * FROM similarity WHERE threshold = '%s' LIMIT 1", sim);
@@ -203,6 +216,12 @@ public class MatchSubgraphs {
                 int fp = 0;
                 int tn = 0;
                 int fn = 0;
+
+                try {
+                    detailsBW.write(String.format("Threshold: %s\n", i));
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
                 while (!end) {
                     try {
                         List<String> pair = graphPermutations.next();
@@ -219,8 +238,10 @@ public class MatchSubgraphs {
                                         List<String> targetLinkList = new ArrayList<String>(goldStandard.get(target.replace(".g", "").toLowerCase()));
                                         if (targetLinkList != null) {
                                             targetLinkList.retainAll(linkList);
+                                            //TODO: Parametrize
                                             if ((double) targetLinkList.size() / Math.max(linkList.size(), targetLinkList.size()) > 0.5) {
                                                 value = "yes";
+                                                System.out.println(String.format("%s - %s", source, target));
                                             }
                                         } else {
                                             continue;
@@ -278,21 +299,30 @@ public class MatchSubgraphs {
                                     }
                                 }
                             }
+                            String status = "";
                             if (similarity > i && value.equals("yes")) {
                                 tp++;
+                                status = "TP";
                             } else if (similarity > i && value.equals("no")) {
                                 fp++;
+                                status = "FP";
                             } else if (similarity <= i && value.equals("yes")) {
                                 fn++;
+                                status = "FN";
                             } else if (similarity <= i && value.equals("no")) {
                                 tn++;
+                                status = "TN";
                             }
+                            String string = String.format("%s - %s (%s) (%s)\n", source, target, similarity, status);
+                            detailsBW.write(string);
                         }
                     } catch (NoSuchElementException e) {
                         end = true;
                     } catch (ClientException e) {
                         e.printStackTrace();
                     } catch (TException e) {
+                        e.printStackTrace();
+                    } catch (IOException e) {
                         e.printStackTrace();
                     }
                 }
@@ -323,6 +353,7 @@ public class MatchSubgraphs {
             }
         }
         try {
+            detailsBW.close();
             bw.close();
         } catch (IOException e) {
             e.printStackTrace();
