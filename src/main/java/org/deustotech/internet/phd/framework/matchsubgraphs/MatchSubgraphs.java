@@ -30,6 +30,8 @@ public class MatchSubgraphs {
 
     private static List<String> commontOntologiesList = new ArrayList<>();
 
+    private static Set<String> relatedList = new HashSet<>();
+
     public static void run(String subduePath, boolean applyStringDistances, String outputFile, int deep) {
 
         commontOntologiesList.add("http://purl.org/dc/terms");
@@ -241,7 +243,9 @@ public class MatchSubgraphs {
                                             //TODO: Parametrize
                                             if ((double) targetLinkList.size() / Math.max(linkList.size(), targetLinkList.size()) > 0.5) {
                                                 value = "yes";
-                                                System.out.println(String.format("%s - %s", source, target));
+                                                //System.out.println(String.format("%s - %s", source, target));
+                                                String related = String.format("%s-%s", source, target);
+                                                relatedList.add(related);
                                             }
                                         } else {
                                             continue;
@@ -357,6 +361,11 @@ public class MatchSubgraphs {
             bw.close();
         } catch (IOException e) {
             e.printStackTrace();
+        }
+
+        System.out.println("Related List:");
+        for (String item : relatedList) {
+            System.out.println(item);
         }
 
     }
