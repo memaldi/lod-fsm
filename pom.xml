@@ -10,8 +10,9 @@
         <args.1>null</args.1>
         <args.2>null</args.2>
         <args.3>null</args.3>
-	<args.4>null</args.4>
-	<args.5>null</args.5>
+	    <args.4>null</args.4>
+	    <args.5>null</args.5>
+	    <args.6>null</args.6>
     </properties>
 
     <build>
@@ -36,8 +37,9 @@
                         <argument>${args.1}</argument>
                         <argument>${args.2}</argument>
                         <argument>${args.3}</argument>
-			<argument>${args.4}</argument>
-			<argument>${args.5}</argument>
+			            <argument>${args.4}</argument>
+			            <argument>${args.5}</argument>
+			            <argument>${args.6}</argument>
                     </arguments>
                 </configuration>
             </plugin>

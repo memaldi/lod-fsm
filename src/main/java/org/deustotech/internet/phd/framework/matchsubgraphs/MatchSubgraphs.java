@@ -14,11 +14,9 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.*;
-import java.math.BigDecimal;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.ByteBuffer;
-import java.text.DecimalFormat;
 import java.util.*;
 
 /**
@@ -28,15 +26,17 @@ public class MatchSubgraphs {
 
     private static String [] range = new String[] {"0.0", "0.1", "0.2", "0.3", "0.4", "0.5", "0.6", "0.7", "0.8", "0.9"};
 
-    private static List<String> commontOntologiesList = new ArrayList<>();
+    private static List<String> commonOntologiesList = new ArrayList<>();
 
     private static Set<String> relatedList = new HashSet<>();
 
-    public static void run(String subduePath, boolean applyStringDistances, String outputFile, int deep) {
+    public static void run(String subduePath, boolean applyStringDistances, String outputFile, int deep, int common) {
 
-        commontOntologiesList.add("http://purl.org/dc/terms");
-        commontOntologiesList.add("http://www.w3.org/2004/02/skos/core");
-        commontOntologiesList.add("http://purl.org/dc/elements/1.1");
+        if (common > 0) {
+            commonOntologiesList.add("http://purl.org/dc/terms");
+            commonOntologiesList.add("http://www.w3.org/2004/02/skos/core");
+            commonOntologiesList.add("http://purl.org/dc/elements/1.1");
+        }
 
         ThriftClient client = null;
         try {
@@ -728,7 +728,7 @@ public class MatchSubgraphs {
 
                     // Check in cross domain ontology list
 
-                    if (!sourceNamespace.equals(targetNamespace) || commontOntologiesList.contains(sourceNamespace)) {
+                    if (!sourceNamespace.equals(targetNamespace) || commonOntologiesList.contains(sourceNamespace)) {
 
                         for (Cell cell : hqlResult.getCells()) {
                             ByteBuffer sourceBuffer = client.get_cell(ns, "alignments", cell.getKey().getRow(), "source");
