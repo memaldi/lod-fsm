@@ -21,7 +21,7 @@ public class RelationExtractor {
                 List<String> targetDatasetList = new ArrayList<>(goldStandard.get(targetDataset));
                 int targetDatasetListSize = targetDatasetList.size();
                 targetDatasetList.retainAll(sourceDatasetList);
-                float score = (float) targetDatasetList.size() / targetDatasetListSize;
+                float score = (float) targetDatasetList.size() / sourceDatasetList.size();
                 if (score > 0 && score < 1) {
                     //System.out.println(String.format("%s - %s (%s)", sourceDataset, targetDataset, score));
 

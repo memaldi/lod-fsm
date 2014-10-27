@@ -88,7 +88,7 @@ public class LoadDataHubGS {
             List<Cell> cells = new ArrayList<>();
             while ((line = br.readLine()) != null) {
                 String[] sline = line.split(",");
-                if (!sline[1].equals("")) {
+                if (!sline[1].equals("") && !sline[4].equals("") && !sline[4].equals("*")) {
 		            HttpHost target = new HttpHost("datahub.io", 80, "http");
                     String url = String.format("%s%s", API_URL, sline[1].replace("http://datahub.io/dataset/", ""));
 		            CloseableHttpClient httpclient = HttpClients.createDefault();
