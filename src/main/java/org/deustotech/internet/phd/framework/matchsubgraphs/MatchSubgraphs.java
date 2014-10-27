@@ -446,7 +446,7 @@ public class MatchSubgraphs {
         return datasetMap;
     }
 
-    private static Map<String, List<String>> loadGoldStandard() {
+    public static Map<String, List<String>> loadGoldStandard() {
 
         ThriftClient client = null;
         try {

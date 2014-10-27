@@ -5,6 +5,7 @@ import org.deustotech.internet.phd.framework.loadsubgraphs.LoadSubgraphs;
 import org.deustotech.internet.phd.framework.matchsubgraphs.MatchSubgraphs;
 import org.deustotech.internet.phd.framework.rdf2subdue.RDF2Subdue;
 import org.deustotech.internet.phd.validation.LoadDataHubGS;
+import org.deustotech.internet.phd.validation.RelationExtractor;
 import org.deustotech.internet.phd.validation.TestDistances;
 
 import static java.lang.System.exit;
@@ -55,6 +56,8 @@ public class Main {
             case "loaddatahubgs":
                 LoadDataHubGS.run(args[1]);
                 break;
+            case "relationextractor":
+                RelationExtractor.run();
         }
     }
 }
