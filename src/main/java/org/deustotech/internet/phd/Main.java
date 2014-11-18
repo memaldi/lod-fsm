@@ -1,5 +1,6 @@
 package org.deustotech.internet.phd;
 
+import org.deustotech.internet.phd.baselines.PrefixComparisonBaseline;
 import org.deustotech.internet.phd.framework.generatealignments.GenerateAlignments;
 import org.deustotech.internet.phd.framework.loadsubgraphs.LoadSubgraphs;
 import org.deustotech.internet.phd.framework.matchsubgraphs.MatchSubgraphs;
@@ -58,6 +59,9 @@ public class Main {
                 break;
             case "relationextractor":
                 RelationExtractor.run();
+                break;
+            case "prefixcomparisonbaseline":
+                PrefixComparisonBaseline.run(args[1]);
         }
     }
 }

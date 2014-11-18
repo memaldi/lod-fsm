@@ -511,6 +511,61 @@ public class MatchSubgraphs {
             }
         }
 
+        query = "SELECT * from usergs";
+
+        hqlResult = null;
+        try {
+            hqlResult = client.hql_query(ns, query);
+        } catch (TException e) {
+            e.printStackTrace();
+        }
+
+        for (Cell cell : hqlResult.getCells()) {
+            if (cell.getKey().getColumn_family().equals("links")) {
+                String nickname = null;
+
+                ByteBuffer nickBuffer = null;
+                try {
+                    nickBuffer = client.get_cell(ns, "usergs", cell.getKey().getRow(), "nickname");
+                    nickname = new String(nickBuffer.array(), nickBuffer.position(), nickBuffer.remaining());
+                } catch (TException e) {
+                    e.printStackTrace();
+                }
+
+                String stringLinks = Bytes.toString(cell.getValue());
+                String[] sline = new String[0];
+                if (stringLinks != null) {
+                    sline = stringLinks.split(",");
+                }
+                List<String> linkList = new ArrayList<>();
+                for (int i = 0; i < sline.length; i++) {
+                    if (!sline[i].equals("")) {
+                        try {
+                            ByteBuffer linkBuffer = client.get_cell(ns, "usergs", sline[i], "nickname");
+                            String link = new String(linkBuffer.array(), linkBuffer.position(), linkBuffer.remaining());
+                            if (!link.equals("")) {
+                                linkList.add(link);
+                            }
+                        } catch (TException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                }
+                if (datahubGS.containsKey(nickname.toLowerCase())) {
+                    List<String> targetLinkList = datahubGS.get(nickname.toLowerCase());
+                    for (String link : linkList) {
+                        if (!targetLinkList.contains(link)) {
+                            targetLinkList.add(link);
+                        }
+                    }
+                    datahubGS.put(nickname.toLowerCase(), targetLinkList);
+                } else {
+                    datahubGS.put(nickname.toLowerCase(), linkList);
+                }
+            }
+
+        }
+
         return datahubGS;
     }
 
