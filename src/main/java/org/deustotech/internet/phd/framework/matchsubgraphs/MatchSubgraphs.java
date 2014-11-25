@@ -97,6 +97,8 @@ public class MatchSubgraphs {
             e.printStackTrace();
         }
 
+        Map<String, List<String>> goldStandard = loadGoldStandard();
+
         createSimilarityTable(client, ns);
         for (int j = 0; j < 10; j += 1 ) {
             double sim = Double.parseDouble(range[j]);
@@ -208,7 +210,7 @@ public class MatchSubgraphs {
                     }
                 }
             }
-            Map<String, List<String>> goldStandard = loadGoldStandard();
+
 
             for (int k = 0; k < 10; k += 1) {
                 double i = Double.parseDouble(range[k]);
@@ -552,7 +554,7 @@ public class MatchSubgraphs {
                     }
                 }
                 if (datahubGS.containsKey(nickname.toLowerCase())) {
-                    List<String> targetLinkList = datahubGS.get(nickname.toLowerCase());
+                        List<String> targetLinkList = datahubGS.get(nickname.toLowerCase());
                     for (String link : linkList) {
                         if (!targetLinkList.contains(link)) {
                             targetLinkList.add(link);
@@ -561,6 +563,19 @@ public class MatchSubgraphs {
                     datahubGS.put(nickname.toLowerCase(), targetLinkList);
                 } else {
                     datahubGS.put(nickname.toLowerCase(), linkList);
+                }
+                for (String link: linkList) {
+                    if(datahubGS.containsKey(link.toLowerCase())) {
+                        List<String> targetLinkList = datahubGS.get(link.toLowerCase());
+                        if (!targetLinkList.contains(nickname)) {
+                            targetLinkList.add(nickname);
+                            datahubGS.put(link, targetLinkList);
+                        }
+                    } else {
+                        List<String> targetLinkList = new ArrayList<>();
+                        targetLinkList.add(nickname);
+                        datahubGS.put(link.toLowerCase(), targetLinkList);
+                    }
                 }
             }
 
