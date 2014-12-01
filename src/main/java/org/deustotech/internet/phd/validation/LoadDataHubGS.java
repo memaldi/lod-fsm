@@ -71,6 +71,8 @@ public class LoadDataHubGS {
             e.printStackTrace();
         }
 
+        Map<String, String> nickDict = new HashMap<String, String>();
+
         BufferedReader br = null;
         try {
             br = new BufferedReader(new FileReader(inputCSV));
@@ -84,6 +86,24 @@ public class LoadDataHubGS {
         }
 
         String line;
+
+        try {
+            while((line = br.readLine()) != null) {
+                String[] sline = line.split(",");
+                if (!sline[1].equals("") && !sline[4].equals("") && !sline[4].equals("*")) {
+                    nickDict.put(sline[1].replace("http://datahub.io/dataset/", ""), sline[4]);
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        try {
+            br = new BufferedReader(new FileReader(inputCSV));
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        }
+
         try {
             List<Cell> cells = new ArrayList<>();
             while ((line = br.readLine()) != null) {
@@ -114,7 +134,9 @@ public class LoadDataHubGS {
                             JSONObject extra = jsonResult.getJSONObject(i);
                             if (extra.getString("key").startsWith("links:")) {
                                 String link = extra.getString("key").replace("links:", "");
-                                linkList += "," + link;
+                                if (nickDict.get(link) != null) {
+                                    linkList += "," + nickDict.get(link);
+                                }
                             }
                         }
 
