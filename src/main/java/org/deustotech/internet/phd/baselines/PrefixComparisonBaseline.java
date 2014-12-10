@@ -180,7 +180,7 @@ public class PrefixComparisonBaseline {
                 e.printStackTrace();
             }
 
-            Map<String, List<String>> goldStandard = MatchSubgraphs.loadGoldStandard();
+            Map<String, List<String>> goldStandard = MatchSubgraphs.loadGoldStandard(false);
 
             for (int i = 0; i < 10; i++) {
                 int fp = 0;
