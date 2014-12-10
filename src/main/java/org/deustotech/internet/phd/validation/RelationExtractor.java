@@ -17,7 +17,7 @@ import java.util.Map;
 public class RelationExtractor {
     public static void run() {
         Map<String, Map<String, Float>> resultMap = new HashMap<>();
-        Map<String, List<String>> goldStandard = MatchSubgraphs.loadGoldStandard();
+        Map<String, List<String>> goldStandard = MatchSubgraphs.loadGoldStandard(false);
         int count = 0;
         File file = new File("relations.csv");
         BufferedWriter bw = null;
