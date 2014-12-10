@@ -148,6 +148,19 @@ public class PrefixComparisonBaseline {
                     }
 
                     List<String> mergedList = new ArrayList<String>();
+                    /*List<String> intersectionList = new ArrayList<String>();
+
+                    for (String item : prefixMap.get(pair.get(0))) {
+                        if (!intersectionList.contains(item)) {
+                            intersectionList.add(item);
+                        }
+                    }
+
+                    for (String item : prefixMap.get(pair.get(1))) {
+                        if (!intersectionList.contains(item)) {
+                            intersectionList.add(item);
+                        }
+                    }*/
                     mergedList.addAll(prefixMap.get(pair.get(0)));
                     mergedList.addAll(prefixMap.get(pair.get(1)));
 
@@ -165,7 +178,7 @@ public class PrefixComparisonBaseline {
                         // Well, combinations.next() do not return null when the last element is reached.
                     }
 
-                    float similarity = (float) total / mergedList.size();
+                    float similarity = (float) total / Math.max(prefixMap.get(pair.get(0)).size(), prefixMap.get(pair.get(1)).size());
                     System.out.println(String.format("%s - %s (%f)", pair.get(0), pair.get(1), similarity));
                     if (!matchMap.containsKey(pair.get(0))) {
                         matchMap.put(pair.get(0), new HashMap<String, Float>());
@@ -180,7 +193,7 @@ public class PrefixComparisonBaseline {
                 e.printStackTrace();
             }
 
-            Map<String, List<String>> goldStandard = MatchSubgraphs.loadGoldStandard(false);
+            Map<String, List<String>> goldStandard = MatchSubgraphs.loadGoldStandard(true);
 
             for (int i = 0; i < 10; i++) {
                 int fp = 0;
