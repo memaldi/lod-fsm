@@ -497,16 +497,8 @@ public class MatchSubgraphs {
                 }
                 List<String> linkList = new ArrayList<>();
                 for (int i = 0; i < sline.length; i++) {
-                    if (!sline[i].equals("")) {
-                        try {
-                            ByteBuffer linkBuffer = client.get_cell(ns, "datahubgs", sline[i], "nickname");
-                            String link = new String(linkBuffer.array(), linkBuffer.position(), linkBuffer.remaining());
-                            if (!link.equals("")) {
-                                linkList.add(link);
-                            }
-                        } catch (TException e) {
-                            e.printStackTrace();
-                        }
+                    if (!sline[i].equals("") && !sline[i].equals(nickname)) {
+                        linkList.add(sline[i]);
                     }
                 }
                 datahubGS.put(nickname.toLowerCase(), linkList);
@@ -542,16 +534,8 @@ public class MatchSubgraphs {
                     }
                     List<String> linkList = new ArrayList<>();
                     for (int i = 0; i < sline.length; i++) {
-                        if (!sline[i].equals("")) {
-                            try {
-                                ByteBuffer linkBuffer = client.get_cell(ns, "usergs", sline[i], "nickname");
-                                String link = new String(linkBuffer.array(), linkBuffer.position(), linkBuffer.remaining());
-                                if (!link.equals("")) {
-                                    linkList.add(link);
-                                }
-                            } catch (TException e) {
-                                e.printStackTrace();
-                            }
+                        if (!sline[i].equals("") && !sline[i].equals(nickname)) {
+                            linkList.add(sline[i]);
                         }
                     }
                     if (datahubGS.containsKey(nickname.toLowerCase())) {
