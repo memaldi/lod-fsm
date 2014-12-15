@@ -51,7 +51,9 @@ public class OntologyRankingBaseline {
             String line;
             while ((line = br.readLine()) != null) {
                 String[] sline = line.split(",");
-                datasetList.add(sline[4]);
+                if (!sline[4].equals("") && !sline[4].equals("*")) {
+                    datasetList.add(sline[4]);
+                }
             }
             br.close();
         } catch (FileNotFoundException e) {
@@ -63,39 +65,38 @@ public class OntologyRankingBaseline {
         Map<String, Map<String, Float>> datasetStats = new HashMap<>();
 
         for (String dataset : datasetList) {
+            logger.info(String.format("Analyzing %s...", dataset));
             Map<String, Float> ontologyStats = new HashMap<>();
             VirtGraph graph = new VirtGraph("http://" + dataset, connectionURL.toString(), prop.getProperty("virtuoso_user"), prop.getProperty("virtuoso_password"));
-            Query query = QueryFactory.create("select distinct ?Class count(?Class) as ?count where {[] a ?Class}");
+            Query query = QueryFactory.create("select ?Class where {[] a ?Class}");
             VirtuosoQueryExecution vqe = VirtuosoQueryExecutionFactory.create(query, graph);
             ResultSet results = vqe.execSelect();
             while (results.hasNext()) {
                 QuerySolution result = results.next();
                 String clazz = result.get("Class").toString();
-                float count = Float.parseFloat(result.get("count").toString());
 
                 String ontologyURI = getPrefix(clazz);
                 float accum = 0;
                 if (ontologyStats.containsKey(ontologyURI)) {
                     accum = ontologyStats.get(ontologyURI);
                 }
-                accum += count;
+                accum++;
                 ontologyStats.put(getPrefix(clazz), accum);
             }
 
-            query = QueryFactory.create("select distinct ?property count(?property) as ?count where {?s ?property ?o}");
+            query = QueryFactory.create("select ?property where {?s ?property ?o}");
             vqe = VirtuosoQueryExecutionFactory.create(query, graph);
             results = vqe.execSelect();
             while (results.hasNext()) {
                 QuerySolution result = results.next();
                 String property = result.get("property").toString();
-                float count = Float.parseFloat(result.get("count").toString());
 
                 String ontologyURI = getPrefix(property);
                 float accum = 0;
                 if (ontologyStats.containsKey(ontologyURI)) {
                     accum = ontologyStats.get(ontologyURI);
                 }
-                accum += count;
+                accum++;
                 ontologyStats.put(getPrefix(property), accum);
             }
 
@@ -125,9 +126,11 @@ public class OntologyRankingBaseline {
             List<String> ranking = new ArrayList<>();
             Map<String, Float> ontologyStats = datasetPercentStats.get(dataset);
             ValueComparator bvc =  new ValueComparator(ontologyStats);
-            TreeMap<String,Double> sortedMap = new TreeMap<>(bvc);
+            TreeMap<String, Float> sortedMap = new TreeMap<>(bvc);
 
-            for (String key : sortedMap.descendingKeySet()) {
+            sortedMap.putAll(ontologyStats);
+
+            for (String key : sortedMap.keySet()) {
                 ranking.add(key);
             }
 
@@ -137,17 +140,25 @@ public class OntologyRankingBaseline {
         Generator<List<String>> combinations = Itertools.combinations(Itertools.iter(datasetList.iterator()), 2);
         List<String> pair;
 
+        Map<String, Map<String, Float>> distanceMap = new HashMap<>();
+
         try {
             while((pair = combinations.next()) != null) {
                 int K = 0;
-                List<String> sourceRanking;
-                List<String> targetRanking;
-                if (rankingMap.get(pair.get(0)).size() >= rankingMap.get(pair.get(1)).size() ) {
-                    sourceRanking = new ArrayList<>(rankingMap.get(pair.get(0)));
-                    targetRanking = new ArrayList<>(rankingMap.get(pair.get(1)));
-                } else {
-                    sourceRanking = new ArrayList<>(rankingMap.get(pair.get(1)));
-                    targetRanking = new ArrayList<>(rankingMap.get(pair.get(0)));
+
+                List<String> sourceRanking = new ArrayList<>(rankingMap.get(pair.get(0)));
+                List<String> targetRanking = new ArrayList<>(rankingMap.get(pair.get(1)));
+
+                for (String item : sourceRanking) {
+                    if (!targetRanking.contains(item)) {
+                        targetRanking.add(item);
+                    }
+                }
+
+                for (String item: targetRanking) {
+                    if(!sourceRanking.contains(item)) {
+                        sourceRanking.add(item);
+                    }
                 }
 
                 Generator<List<String>> itemCombinations = Itertools.combinations(Itertools.iter(sourceRanking.iterator()), 2);
@@ -164,7 +175,15 @@ public class OntologyRankingBaseline {
                 }
 
                 float KN = (float) K / (sourceRanking.size() * (sourceRanking.size() - 1) / 2);
-                System.out.println(KN);
+                System.out.println(String.format("%s - %s (%s)", pair.get(0), pair.get(1), KN));
+
+                Map<String, Float> targetDistanceMap = new HashMap<>();
+                if (distanceMap.containsKey(pair.get(0))) {
+                    targetDistanceMap = distanceMap.get(pair.get(0));
+                }
+
+                targetDistanceMap.put(pair.get(1), 1 - KN);
+                distanceMap.put(pair.get(0), targetDistanceMap);
 
             }
         } catch (NoSuchElementException e) {
