@@ -1,5 +1,6 @@
 package org.deustotech.internet.phd;
 
+import org.deustotech.internet.phd.baselines.OntologyRankingBaseline;
 import org.deustotech.internet.phd.baselines.PrefixComparisonBaseline;
 import org.deustotech.internet.phd.framework.generatealignments.GenerateAlignments;
 import org.deustotech.internet.phd.framework.loadsubgraphs.LoadSubgraphs;
@@ -62,6 +63,9 @@ public class Main {
                 break;
             case "prefixcomparisonbaseline":
                 PrefixComparisonBaseline.run(args[1]);
+                break;
+            case "ontologyrankingbaseline":
+                OntologyRankingBaseline.run(args[1]);
         }
     }
 }

@@ -6,6 +6,7 @@ import com.hp.hpl.jena.query.QuerySolution;
 import com.hp.hpl.jena.query.ResultSet;
 import net.ericaro.neoitertools.Generator;
 import net.ericaro.neoitertools.Itertools;
+import org.apache.avro.generic.GenericData;
 import org.apache.http.client.utils.URIBuilder;
 import virtuoso.jena.driver.VirtGraph;
 import virtuoso.jena.driver.VirtuosoQueryExecution;
@@ -21,14 +22,14 @@ import java.util.logging.Logger;
  * Created by memaldi on 12/12/14.
  */
 public class OntologyRankingBaseline {
-    public void launch(String csvLocation) {
-        Logger logger = Logger.getLogger(this.getClass().getName());
+    public static void run(String csvLocation) {
+        Logger logger = Logger.getLogger(OntologyRankingBaseline.class.getName());
         logger.info("Initializing...");
         Properties prop = new Properties();
         InputStream input;
 
         try {
-            input = getClass().getResourceAsStream("/config.properties");
+            input = OntologyRankingBaseline.class.getResourceAsStream("/config.properties");
             prop.load(input);
             input.close();
         } catch (IOException e) {
@@ -118,40 +119,56 @@ public class OntologyRankingBaseline {
             datasetPercentStats.put(dataset, ontologyPercentStats);
         }
 
+        Map<String, List<String>> rankingMap = new HashMap<>();
+
+        for (String dataset: datasetList) {
+            List<String> ranking = new ArrayList<>();
+            Map<String, Float> ontologyStats = datasetPercentStats.get(dataset);
+            ValueComparator bvc =  new ValueComparator(ontologyStats);
+            TreeMap<String,Double> sortedMap = new TreeMap<>(bvc);
+
+            for (String key : sortedMap.descendingKeySet()) {
+                ranking.add(key);
+            }
+
+            rankingMap.put(dataset, ranking);
+        }
+
         Generator<List<String>> combinations = Itertools.combinations(Itertools.iter(datasetList.iterator()), 2);
         List<String> pair;
 
         try {
             while((pair = combinations.next()) != null) {
-                String sourceDataset = pair.get(0);
-                String targetDataset = pair.get(1);
-
-                List<String> sourceOntologyList = new ArrayList<>();
-                List<String> targetOntologyList = new ArrayList<>();
-
-                Map<String, Float> sourceOntologyStats = datasetPercentStats.get(sourceDataset);
-                Map<String, Float> targetOntologyStats = datasetPercentStats.get(targetDataset);
-
-                //List<String> iterableList = new ArrayList<>();
-                //List<String> objectiveList = new ArrayList<>();
-
-                if (datasetPercentStats.get(sourceDataset).keySet().size() >= datasetPercentStats.get(targetDataset).keySet().size()) {
-                    sourceOntologyList = new ArrayList<>(datasetPercentStats.get(sourceDataset));
-                    targetOntologyList = new ArrayList<>(datasetPercentStats.get(targetDataset));
+                int K = 0;
+                List<String> sourceRanking;
+                List<String> targetRanking;
+                if (rankingMap.get(pair.get(0)).size() >= rankingMap.get(pair.get(1)).size() ) {
+                    sourceRanking = new ArrayList<>(rankingMap.get(pair.get(0)));
+                    targetRanking = new ArrayList<>(rankingMap.get(pair.get(1)));
                 } else {
-                    sourceOntologyList = new ArrayList<>(datasetPercentStats.get(targetDataset));
-                    targetOntologyList = new ArrayList<>(datasetPercentStats.get(sourceDataset));
+                    sourceRanking = new ArrayList<>(rankingMap.get(pair.get(1)));
+                    targetRanking = new ArrayList<>(rankingMap.get(pair.get(0)));
                 }
 
-                for (String sourceOntology : sourceOntologyList) {
-                    for (String targetOntology: targetOntologyList) {
+                Generator<List<String>> itemCombinations = Itertools.combinations(Itertools.iter(sourceRanking.iterator()), 2);
+                List<String> itemPair;
+                try {
+                    while ((itemPair = itemCombinations.next()) != null) {
+                        if ((sourceRanking.indexOf(itemPair.get(0)) > sourceRanking.indexOf(itemPair.get(1)) && targetRanking.indexOf(itemPair.get(0)) < targetRanking.indexOf(itemPair.get(1))) || (sourceRanking.indexOf(itemPair.get(0)) < sourceRanking.indexOf(itemPair.get(1)) && targetRanking.indexOf(itemPair.get(0)) > targetRanking.indexOf(itemPair.get(1)))) {
+                            K++;
+                        }
 
                     }
+                } catch (NoSuchElementException e) {
+
                 }
+
+                float KN = (float) K / (sourceRanking.size() * (sourceRanking.size() - 1) / 2);
+                System.out.println(KN);
 
             }
         } catch (NoSuchElementException e) {
-            // Well, combinations.next() do not return null when the last element is reached.
+
         }
 
     }
@@ -167,5 +184,22 @@ public class OntologyRankingBaseline {
             }
             return result;
         }
+    }
+}
+
+class ValueComparator implements Comparator<String> {
+
+    Map<String, Float> base;
+    public ValueComparator(Map<String, Float> base) {
+        this.base = base;
+    }
+
+    @Override
+    public int compare(String a, String b) {
+        if (base.get(a) >= base.get(b)) {
+            return -1;
+        } else {
+            return 1;
+        } // returning 0 would merge keys
     }
 }
