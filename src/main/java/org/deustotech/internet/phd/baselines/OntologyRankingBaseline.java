@@ -8,7 +8,11 @@ import net.ericaro.neoitertools.Generator;
 import net.ericaro.neoitertools.Itertools;
 import org.apache.avro.generic.GenericData;
 import org.apache.http.client.utils.URIBuilder;
+import org.apache.thrift.TException;
 import org.deustotech.internet.phd.framework.matchsubgraphs.MatchSubgraphs;
+import org.hypertable.thrift.ThriftClient;
+import org.hypertable.thriftgen.Cell;
+import org.hypertable.thriftgen.HqlResult;
 import virtuoso.jena.driver.VirtGraph;
 import virtuoso.jena.driver.VirtuosoQueryExecution;
 import virtuoso.jena.driver.VirtuosoQueryExecutionFactory;
@@ -16,6 +20,7 @@ import virtuoso.jena.driver.VirtuosoQueryExecutionFactory;
 import java.io.*;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.logging.Logger;
 
@@ -26,7 +31,7 @@ public class OntologyRankingBaseline {
 
     private static String [] range = new String[] {"0.0", "0.1", "0.2", "0.3", "0.4", "0.5", "0.6", "0.7", "0.8", "0.9"};
 
-    public static void run(String csvLocation) {
+    public static void run() {
         Logger logger = Logger.getLogger(OntologyRankingBaseline.class.getName());
         logger.info("Initializing...");
         Properties prop = new Properties();
@@ -47,24 +52,47 @@ public class OntologyRankingBaseline {
             e.printStackTrace();
         }
 
-        BufferedReader br;
+
         Set<String> datasetList = new HashSet<String>();
 
+        ThriftClient client = null;
         try {
-            br = new BufferedReader(new FileReader(csvLocation));
-            String line;
-            while ((line = br.readLine()) != null) {
-                String[] sline = line.split(",");
-                if (!sline[4].equals("") && !sline[4].equals("*")) {
-                    datasetList.add(sline[4]);
-                }
-            }
-            br.close();
-        } catch (FileNotFoundException e) {
+            client = ThriftClient.create("localhost", 15867);
+        } catch (TException e) {
             e.printStackTrace();
-        } catch (IOException e) {
+            System.exit(1);
+        }
+
+        long ns = 0;
+        try {
+            if (!client.namespace_exists("framework")) {
+                client.namespace_create("framework");
+            }
+            ns = client.namespace_open("framework");
+        } catch (TException e) {
             e.printStackTrace();
         }
+
+        String hqlQuery = "SELECT * from subgraphs where type = 'vertex'";
+
+        HqlResult hqlResult = null;
+        try {
+            hqlResult = client.hql_query(ns, hqlQuery);
+            if (hqlResult.getCells().size() > 0) {
+                for (Cell cell : hqlResult.getCells()) {
+                    ByteBuffer graphBuffer = client.get_cell(ns, "subgraphs", cell.getKey().getRow(), "graph");
+                    String graph = new String(graphBuffer.array(), graphBuffer.position(), graphBuffer.remaining());
+                    if (!datasetList.contains(graph.replace(".g", ""))) {
+                        datasetList.add(graph.replace(".g", ""));
+                    }
+                }
+            }
+        } catch (TException e) {
+            e.printStackTrace();
+        }
+
+
+
 
         Map<String, Map<String, Float>> datasetStats = new HashMap<>();
 

@@ -65,7 +65,7 @@ public class Main {
                 PrefixComparisonBaseline.run(args[1]);
                 break;
             case "ontologyrankingbaseline":
-                OntologyRankingBaseline.run(args[1]);
+                OntologyRankingBaseline.run();
         }
     }
 }
