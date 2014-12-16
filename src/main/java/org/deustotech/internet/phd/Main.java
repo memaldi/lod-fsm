@@ -62,7 +62,7 @@ public class Main {
                 RelationExtractor.run();
                 break;
             case "prefixcomparisonbaseline":
-                PrefixComparisonBaseline.run(args[1]);
+                PrefixComparisonBaseline.run();
                 break;
             case "ontologyrankingbaseline":
                 OntologyRankingBaseline.run();
