@@ -8,6 +8,7 @@ import net.ericaro.neoitertools.Generator;
 import net.ericaro.neoitertools.Itertools;
 import org.apache.avro.generic.GenericData;
 import org.apache.http.client.utils.URIBuilder;
+import org.deustotech.internet.phd.framework.matchsubgraphs.MatchSubgraphs;
 import virtuoso.jena.driver.VirtGraph;
 import virtuoso.jena.driver.VirtuosoQueryExecution;
 import virtuoso.jena.driver.VirtuosoQueryExecutionFactory;
@@ -22,6 +23,9 @@ import java.util.logging.Logger;
  * Created by memaldi on 12/12/14.
  */
 public class OntologyRankingBaseline {
+
+    private static String [] range = new String[] {"0.0", "0.1", "0.2", "0.3", "0.4", "0.5", "0.6", "0.7", "0.8", "0.9"};
+
     public static void run(String csvLocation) {
         Logger logger = Logger.getLogger(OntologyRankingBaseline.class.getName());
         logger.info("Initializing...");
@@ -182,12 +186,75 @@ public class OntologyRankingBaseline {
                     targetDistanceMap = distanceMap.get(pair.get(0));
                 }
 
-                targetDistanceMap.put(pair.get(1), 1 - KN);
+                targetDistanceMap.put(pair.get(1), KN);
                 distanceMap.put(pair.get(0), targetDistanceMap);
 
             }
         } catch (NoSuchElementException e) {
 
+        }
+
+        Map<String, List<String>> goldStandard = MatchSubgraphs.loadGoldStandard(true);
+
+        for (int j = 0; j < 10; j += 1 ) {
+            int tp = 0;
+            int fp = 0;
+            int tn = 0;
+            int fn = 0;
+            double threshold = Double.parseDouble(range[j]);
+            for (String sourceDataset : distanceMap.keySet()) {
+                for (String targetDataset : distanceMap.get(sourceDataset).keySet()) {
+                    float score = 0;
+                    if (distanceMap.containsKey(sourceDataset)) {
+                        if (distanceMap.get(sourceDataset).containsKey(targetDataset)) {
+                            score = distanceMap.get(sourceDataset).get(targetDataset);
+                        }
+                    } else if (distanceMap.containsKey(targetDataset)) {
+                        if (distanceMap.get(targetDataset).containsKey(sourceDataset)) {
+                            score = distanceMap.get(targetDataset).get(sourceDataset);
+                        }
+                    }
+
+                    boolean linked = false;
+
+                    if (goldStandard.containsKey(sourceDataset)) {
+                        if (goldStandard.get(sourceDataset).contains(targetDataset)) {
+                            linked = true;
+                        }
+                    } else if (goldStandard.containsKey(targetDataset)) {
+                        if (goldStandard.get(targetDataset).contains(sourceDataset)) {
+                            linked = true;
+                        }
+                    }
+
+                    if (score > threshold && linked) {
+                        tp++;
+                    } else if (score > threshold && !linked) {
+                        fp++;
+                    } else if (score <= threshold && linked) {
+                        fn++;
+                    } else if (score <= threshold && !linked) {
+                        tn++;
+                    }
+                }
+            }
+
+            System.out.println(String.format("Threshold: %s", threshold));
+
+            double precision = (double) tp / (tp + fp);
+            double recall = (double) tp / (tp + fn);
+            double f1 = 2 * precision * recall / (precision + recall);
+            double accuracy = (double) (tp + tn) / (tp + tn + fp + fn);
+
+            System.out.println(String.format("True positives: %s", tp));
+            System.out.println(String.format("False positives: %s", fp));
+            System.out.println(String.format("True negatives: %s", tn));
+            System.out.println(String.format("False negatives: %s", fn));
+
+            System.out.println(String.format("Precision: %s", precision));
+            System.out.println(String.format("Recall: %s", recall));
+            System.out.println(String.format("F1: %s", f1));
+            System.out.println(String.format("Accuracy: %s", accuracy));
         }
 
     }
