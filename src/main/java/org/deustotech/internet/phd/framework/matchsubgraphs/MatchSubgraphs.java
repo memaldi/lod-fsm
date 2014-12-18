@@ -126,6 +126,7 @@ public class MatchSubgraphs {
                     try {
                         List<String> pair = graphPermutations.next();
                         if (!pair.get(0).equals(pair.get(1))) {
+                            System.out.println(String.format("Pairing %s and %s", pair.get(0), pair.get(1)));
                             Graph sourceGraph = getGraph(pair.get(0), client, ns);
                             Graph targetGraph = getGraph(pair.get(1), client, ns);
                             List<Graph> matchedGraphs = matchGraphs(sourceGraph, targetGraph, client, ns, applyStringDistances, sim);
@@ -698,9 +699,23 @@ public class MatchSubgraphs {
                     }
                 }
                 if (1 - minDistance > similarityThreshold) {
-                    String uuid = UUID.randomUUID().toString();
-                    replaceMap.put(label, uuid);
-                    replaceMap.put(minLabel, uuid);
+
+                    boolean minor = true;
+                    for (String auxLabel : distanceMap.keySet()) {
+                        if (distanceMap.get(auxLabel).keySet().contains(minLabel) && !auxLabel.equals(label)) {
+                            if(distanceMap.get(auxLabel).get(minLabel) < minDistance) {
+                                minor = false;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (minor) {
+                        String uuid = UUID.randomUUID().toString();
+                        replaceMap.put(label, uuid);
+                        replaceMap.put(minLabel, uuid);
+                    }
+
                 }
             }
             matchedSourceGraph = getMatchedGraph(sourceGraph, replaceMap);
