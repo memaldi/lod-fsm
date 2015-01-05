@@ -99,6 +99,8 @@ public class MatchSubgraphs {
 
         Map<String, List<String>> goldStandard = loadGoldStandard(loadUserData);
 
+        List<String> fpList = new ArrayList<>();
+
         createSimilarityTable(client, ns);
         for (int j = 0; j < 10; j += 1 ) {
             double sim = Double.parseDouble(range[j]);
@@ -212,7 +214,6 @@ public class MatchSubgraphs {
                 }
             }
 
-
             for (int k = 0; k < 10; k += 1) {
                 double i = Double.parseDouble(range[k]);
                 graphPermutations = Itertools.combinations(Itertools.iter(graphSet.iterator()), 2);
@@ -313,6 +314,11 @@ public class MatchSubgraphs {
                             } else if (similarity > i && value.equals("no")) {
                                 fp++;
                                 status = "FP";
+                                if (i > 0.5) {
+                                    if (!fpList.contains(String.format("%s;%s\n", source, target)) && !fpList.contains(String.format("%s;%s\n", target, source))) {
+                                        fpList.add(String.format("%s;%s\n", source, target));
+                                    }
+                                }
                             } else if (similarity <= i && value.equals("yes")) {
                                 fn++;
                                 status = "FN";
@@ -369,6 +375,28 @@ public class MatchSubgraphs {
         System.out.println("Related List:");
         for (String item : relatedList) {
             System.out.println(item);
+        }
+
+        File fpFile = new File("fps.txt");
+        BufferedWriter fpBW = null;
+        try {
+            fpBW = new BufferedWriter(new FileWriter(fpFile));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        for (String pair : fpList) {
+            try {
+                fpBW.write(pair);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+
+        try {
+            fpBW.close();
+        } catch (IOException e) {
+            e.printStackTrace();
         }
 
     }
