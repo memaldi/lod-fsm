@@ -314,7 +314,7 @@ public class MatchSubgraphs {
                             } else if (similarity > i && value.equals("no")) {
                                 fp++;
                                 status = "FP";
-                                if (i > 0.5) {
+                                if (i > 0.5 && sim > 0.5) {
                                     if (!fpList.contains(String.format("%s;%s\n", source, target)) && !fpList.contains(String.format("%s;%s\n", target, source))) {
                                         fpList.add(String.format("%s;%s\n", source, target));
                                     }
