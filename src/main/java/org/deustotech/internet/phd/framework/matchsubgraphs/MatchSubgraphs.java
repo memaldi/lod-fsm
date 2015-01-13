@@ -85,7 +85,7 @@ public class MatchSubgraphs {
 
         for (String distanceType : distanceList) {
 
-            File file = new File(String.format("%s.csv"));
+            File file = new File(String.format("%s.csv", distanceType));
             BufferedWriter bw = null;
             try {
                 bw = new BufferedWriter(new FileWriter(file));
