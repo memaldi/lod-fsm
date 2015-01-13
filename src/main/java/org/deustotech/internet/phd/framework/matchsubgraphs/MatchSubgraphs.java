@@ -26,13 +26,11 @@ public class MatchSubgraphs {
 
     private static String [] range = new String[] {"0.0", "0.1", "0.2", "0.3", "0.4", "0.5", "0.6", "0.7", "0.8", "0.9"};
 
-    private static List<String> commonOntologiesList = new ArrayList<>();
-
     private static Set<String> relatedList = new HashSet<>();
 
     private static List<String> distanceList = new ArrayList<>();
 
-    public static void run(String subduePath, boolean applyStringDistances, int deep, int common, boolean loadUserData) {
+    public static void run(String subduePath, boolean applyStringDistances, boolean loadUserData) {
 
         distanceList.add("basicSynonymDistance");
         distanceList.add("subStringDistance");
@@ -40,12 +38,6 @@ public class MatchSubgraphs {
         distanceList.add("geometricMean");
         distanceList.add("equalDistance");
         distanceList.add("smoaDistance");
-
-        if (common > 0) {
-            commonOntologiesList.add("http://purl.org/dc/terms");
-            commonOntologiesList.add("http://www.w3.org/2004/02/skos/core");
-            commonOntologiesList.add("http://purl.org/dc/elements/1.1");
-        }
 
         ThriftClient client = null;
         try {
@@ -251,25 +243,6 @@ public class MatchSubgraphs {
                                 if (linkList != null) {
                                     if (linkList.contains(target.replace(".g", "").toLowerCase())) {
                                         value = "yes";
-                                    } else if (deep > 0) {
-                                        if (goldStandard.get(target.replace(".g", "").toLowerCase()) != null) {
-                                            List<String> targetLinkList = new ArrayList<String>(goldStandard.get(target.replace(".g", "").toLowerCase()));
-                                            if (targetLinkList != null) {
-                                                targetLinkList.retainAll(linkList);
-                                                //TODO: Parametrize
-                                                if ((double) targetLinkList.size() / Math.max(linkList.size(), targetLinkList.size()) > 0.5) {
-                                                    value = "yes";
-                                                    //System.out.println(String.format("%s - %s", source, target));
-                                                    String related = String.format("%s-%s", source, target);
-                                                    relatedList.add(related);
-                                                }
-                                            } else {
-                                                continue;
-                                            }
-                                        } else {
-                                            continue;
-                                        }
-
                                     }
                                 }
 
@@ -840,7 +813,7 @@ public class MatchSubgraphs {
 
                     // Check in cross domain ontology list
 
-                    if (!sourceNamespace.equals(targetNamespace) || commonOntologiesList.contains(sourceNamespace)) {
+                    if (!sourceNamespace.equals(targetNamespace)) {
 
                         for (Cell cell : hqlResult.getCells()) {
                             ByteBuffer sourceBuffer = client.get_cell(ns, "alignments", cell.getKey().getRow(), "source");
