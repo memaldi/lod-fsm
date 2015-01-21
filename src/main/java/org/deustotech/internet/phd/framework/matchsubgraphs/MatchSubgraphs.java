@@ -113,7 +113,7 @@ public class MatchSubgraphs {
                 }
                 boolean end = false;
                 Generator<List<String>> graphPermutations = Itertools.combinations(Itertools.iter(graphSet.iterator()), 2);
-                String query = String.format("SELECT * FROM similarity WHERE threshold = '%s' LIMIT 1", sim);
+                String query = String.format("SELECT * FROM similarity WHERE threshold = '%s' and distanceType = '%s' LIMIT 1", sim, distanceType);
                 int resultSize = 0;
                 try {
                     HqlResult hqlResult = client.hql_query(ns, query);
@@ -185,6 +185,20 @@ public class MatchSubgraphs {
 
                                 try {
                                     cell.setValue(String.valueOf(sim).getBytes("UTF-8"));
+                                } catch (UnsupportedEncodingException e) {
+                                    e.printStackTrace();
+                                }
+
+                                cells.add(cell);
+
+                                key = new Key();
+                                key.setRow(keyID);
+                                key.setColumn_family("distanceType");
+                                cell = new Cell();
+                                cell.setKey(key);
+
+                                try {
+                                    cell.setValue(String.valueOf(distanceType).getBytes("UTF-8"));
                                 } catch (UnsupportedEncodingException e) {
                                     e.printStackTrace();
                                 }
@@ -402,6 +416,10 @@ public class MatchSubgraphs {
         cf = new ColumnFamilySpec();
         cf.setName("threshold");
         columnFamilies.put("threshold", cf);
+
+        cf = new ColumnFamilySpec();
+        cf.setName("distanceType");
+        columnFamilies.put("distaceType", cf);
 
         cf = new ColumnFamilySpec();
         cf.setName("value");
