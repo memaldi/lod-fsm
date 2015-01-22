@@ -44,6 +44,7 @@ public class LoadSubgraphs {
 
         ColumnFamilySpec cf = new ColumnFamilySpec();
         cf.setName("type");
+        cf.setValue_index(true);
         columnFamilies.put("type", cf);
 
         cf = new ColumnFamilySpec();
@@ -56,6 +57,7 @@ public class LoadSubgraphs {
 
         cf = new ColumnFamilySpec();
         cf.setName("graph");
+        cf.setValue_index(true);
         columnFamilies.put("graph", cf);
 
         cf = new ColumnFamilySpec();
