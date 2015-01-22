@@ -262,7 +262,7 @@ public class MatchSubgraphs {
 
                                 Double similarity = null;
 
-                                query = String.format("SELECT val FROM similarity WHERE source = '%s' and target='%s' and distanceType = '%s'", source, target, distanceType);
+                                query = String.format("SELECT val FROM similarity WHERE source = '%s' and target='%s' and distanceType = '%s' and threshold = '%s'", source, target, distanceType, sim);
                                 HqlResult hqlResult = client.hql_query(ns, query);
                                 if (hqlResult.getCells().size() > 0) {
                                     for (Cell cell : hqlResult.getCells()) {
@@ -272,25 +272,14 @@ public class MatchSubgraphs {
                                     }
                                 }
                                 if (similarity == null) {
-                                    query = String.format("SELECT * FROM similarity WHERE source = '%s' and distanceType = '%s'", target, distanceType);
+                                    query = String.format("SELECT * FROM similarity WHERE source = '%s' and target = '%s' and distanceType = '%s' and threshold = '%s'", target, source, distanceType, sim);
                                     hqlResult = client.hql_query(ns, query);
                                     if (hqlResult.getCells().size() > 0) {
                                         for (Cell cell : hqlResult.getCells()) {
-                                            ByteBuffer targetBuffer = client.get_cell(ns, "similarity", cell.getKey().getRow(), "source");
-                                            String stringTarget = new String(targetBuffer.array(), targetBuffer.position(), targetBuffer.remaining());
-
-                                            if (stringTarget.equals(target)) {
-                                                ByteBuffer thresholdBuffer = client.get_cell(ns, "similarity", cell.getKey().getRow(), "threshold");
-                                                String stringThreshold = new String(thresholdBuffer.array(), thresholdBuffer.position(), thresholdBuffer.remaining());
-
-                                                if (Double.valueOf(stringThreshold) == sim) {
-
-                                                    ByteBuffer valueBuffer = client.get_cell(ns, "similarity", cell.getKey().getRow(), "val");
-                                                    String stringValue = new String(valueBuffer.array(), valueBuffer.position(), valueBuffer.remaining());
-                                                    similarity = Double.valueOf(stringValue);
-                                                    break;
-                                                }
-                                            }
+                                            ByteBuffer valueBuffer = client.get_cell(ns, "similarity", cell.getKey().getRow(), "val");
+                                            String stringValue = new String(valueBuffer.array(), valueBuffer.position(), valueBuffer.remaining());
+                                            similarity = Double.valueOf(stringValue);
+                                            break;
                                         }
                                     }
                                 }
