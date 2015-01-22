@@ -207,7 +207,7 @@ public class MatchSubgraphs {
 
                                 key = new Key();
                                 key.setRow(keyID);
-                                key.setColumn_family("value");
+                                key.setColumn_family("val");
                                 cell = new Cell();
                                 cell.setKey(key);
 
@@ -262,7 +262,7 @@ public class MatchSubgraphs {
 
                                 Double similarity = null;
 
-                                query = String.format("SELECT * FROM similarity WHERE source = '%s'", source);
+                                query = String.format("SELECT * FROM similarity WHERE source = '%s' and distanceType = '%s'", source, distanceType);
                                 HqlResult hqlResult = client.hql_query(ns, query);
                                 if (hqlResult.getCells().size() > 0) {
                                     for (Cell cell : hqlResult.getCells()) {
@@ -275,7 +275,7 @@ public class MatchSubgraphs {
 
                                             if (Double.valueOf(stringThreshold) == sim) {
 
-                                                ByteBuffer valueBuffer = client.get_cell(ns, "similarity", cell.getKey().getRow(), "value");
+                                                ByteBuffer valueBuffer = client.get_cell(ns, "similarity", cell.getKey().getRow(), "val");
                                                 String stringValue = new String(valueBuffer.array(), valueBuffer.position(), valueBuffer.remaining());
                                                 similarity = Double.valueOf(stringValue);
                                                 break;
@@ -284,11 +284,11 @@ public class MatchSubgraphs {
                                     }
                                 }
                                 if (similarity == null) {
-                                    query = String.format("SELECT * FROM similarity WHERE source = '%s'", source);
+                                    query = String.format("SELECT * FROM similarity WHERE source = '%s' and distanceType = '%s'", target, distanceType);
                                     hqlResult = client.hql_query(ns, query);
                                     if (hqlResult.getCells().size() > 0) {
                                         for (Cell cell : hqlResult.getCells()) {
-                                            ByteBuffer targetBuffer = client.get_cell(ns, "similarity", cell.getKey().getRow(), "target");
+                                            ByteBuffer targetBuffer = client.get_cell(ns, "similarity", cell.getKey().getRow(), "source");
                                             String stringTarget = new String(targetBuffer.array(), targetBuffer.position(), targetBuffer.remaining());
 
                                             if (stringTarget.equals(target)) {
@@ -297,7 +297,7 @@ public class MatchSubgraphs {
 
                                                 if (Double.valueOf(stringThreshold) == sim) {
 
-                                                    ByteBuffer valueBuffer = client.get_cell(ns, "similarity", cell.getKey().getRow(), "value");
+                                                    ByteBuffer valueBuffer = client.get_cell(ns, "similarity", cell.getKey().getRow(), "val");
                                                     String stringValue = new String(valueBuffer.array(), valueBuffer.position(), valueBuffer.remaining());
                                                     similarity = Double.valueOf(stringValue);
                                                     break;
@@ -422,8 +422,8 @@ public class MatchSubgraphs {
         columnFamilies.put("distaceType", cf);
 
         cf = new ColumnFamilySpec();
-        cf.setName("value");
-        columnFamilies.put("value", cf);
+        cf.setName("val");
+        columnFamilies.put("val", cf);
 
         schema.setColumn_families(columnFamilies);
 
