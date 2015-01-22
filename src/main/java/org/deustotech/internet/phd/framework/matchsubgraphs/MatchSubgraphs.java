@@ -262,25 +262,13 @@ public class MatchSubgraphs {
 
                                 Double similarity = null;
 
-                                query = String.format("SELECT * FROM similarity WHERE source = '%s' and distanceType = '%s'", source, distanceType);
+                                query = String.format("SELECT val FROM similarity WHERE source = '%s' and target='%s' and distanceType = '%s'", source, target, distanceType);
                                 HqlResult hqlResult = client.hql_query(ns, query);
                                 if (hqlResult.getCells().size() > 0) {
                                     for (Cell cell : hqlResult.getCells()) {
-                                        ByteBuffer targetBuffer = client.get_cell(ns, "similarity", cell.getKey().getRow(), "target");
-                                        String stringTarget = new String(targetBuffer.array(), targetBuffer.position(), targetBuffer.remaining());
-
-                                        if (stringTarget.equals(target)) {
-                                            ByteBuffer thresholdBuffer = client.get_cell(ns, "similarity", cell.getKey().getRow(), "threshold");
-                                            String stringThreshold = new String(thresholdBuffer.array(), thresholdBuffer.position(), thresholdBuffer.remaining());
-
-                                            if (Double.valueOf(stringThreshold) == sim) {
-
-                                                ByteBuffer valueBuffer = client.get_cell(ns, "similarity", cell.getKey().getRow(), "val");
-                                                String stringValue = new String(valueBuffer.array(), valueBuffer.position(), valueBuffer.remaining());
-                                                similarity = Double.valueOf(stringValue);
-                                                break;
-                                            }
-                                        }
+                                        ByteBuffer valueBuffer = client.get_cell(ns, "similarity", cell.getKey().getRow(), "val");
+                                        String stringValue = new String(valueBuffer.array(), valueBuffer.position(), valueBuffer.remaining());
+                                        similarity = Double.valueOf(stringValue);
                                     }
                                 }
                                 if (similarity == null) {
@@ -407,18 +395,22 @@ public class MatchSubgraphs {
 
         ColumnFamilySpec cf = new ColumnFamilySpec();
         cf.setName("source");
+        cf.setValue_index(true);
         columnFamilies.put("source", cf);
 
         cf = new ColumnFamilySpec();
         cf.setName("target");
+        cf.setValue_index(true);
         columnFamilies.put("target", cf);
 
         cf = new ColumnFamilySpec();
         cf.setName("threshold");
+        cf.setValue_index(true);
         columnFamilies.put("threshold", cf);
 
         cf = new ColumnFamilySpec();
         cf.setName("distanceType");
+        cf.setValue_index(true);
         columnFamilies.put("distaceType", cf);
 
         cf = new ColumnFamilySpec();
