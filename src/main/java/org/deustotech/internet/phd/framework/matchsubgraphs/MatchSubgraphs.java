@@ -782,76 +782,32 @@ public class MatchSubgraphs {
         Map<String, Map<String, Double>> distanceMap = new HashMap<>();
         boolean end = false;
 
-        String query = String.format("SELECT * FROM alignments WHERE distance = '%s'", distance);
-
-        HqlResult hqlResult = null;
-        try {
-            hqlResult = client.hql_query(ns, query);
-        } catch (TException e) {
-            e.printStackTrace();
-        }
-
         while(!end) {
+            List<String> pair = vertexPermutations.next();
+            String source = pair.get(0);
+            String target = pair.get(1);
+
+            String query = String.format("SELECT val FROM alignments WHERE source = '%s' and target = '%s' and distance = '%s' KEYS_ONLY", source, target, distance);
+
+            HqlResult hqlResult = null;
             try {
-                List<String> pair = vertexPermutations.next();
+                hqlResult = client.hql_query(ns, query);
+                for (Cell cell : hqlResult.getCells()) {
+                    ByteBuffer valueBuffer = client.get_cell(ns, "alignments", cell.getKey().getRow(), "val");
+                    double value = Double.valueOf(new String(valueBuffer.array(), valueBuffer.position(), valueBuffer.remaining()));
 
-                // OntologyEquality
-
-                String sourceNamespace = null;
-                String targetNamespace = null;
-                try {
-                    URL sourceURL = new URL(pair.get(0).replace("\"", ""));
-                    sourceNamespace = String.format("%s://%s%s", sourceURL.getProtocol(), sourceURL.getHost(), sourceURL.getPath());
-                    URL targetURL = new URL(pair.get(1).replace("\"", ""));
-                    targetNamespace = String.format("%s://%s%s", targetURL.getProtocol(), targetURL.getHost(), targetURL.getPath());
-                } catch (MalformedURLException e) {
-                    e.printStackTrace();
-                }
-
-                if ((sourceNamespace != null) && (targetNamespace != null)) {
-
-                    // Check in cross domain ontology list
-
-                    if (!sourceNamespace.equals(targetNamespace)) {
-
-                        for (Cell cell : hqlResult.getCells()) {
-                            ByteBuffer sourceBuffer = client.get_cell(ns, "alignments", cell.getKey().getRow(), "source");
-                            String source = new String(sourceBuffer.array(), sourceBuffer.position(), sourceBuffer.remaining());
-
-                            if (source.equals(pair.get(0))) {
-                                ByteBuffer targetBuffer = client.get_cell(ns, "alignments", cell.getKey().getRow(), "target");
-                                String target = new String(targetBuffer.array(), targetBuffer.position(), targetBuffer.remaining());
-
-                                if (target.equals(pair.get(1))) {
-                                    ByteBuffer valueBuffer = client.get_cell(ns, "alignments", cell.getKey().getRow(), "value");
-                                    double value = Double.valueOf(new String(valueBuffer.array(), valueBuffer.position(), valueBuffer.remaining()));
-                                    if (!distanceMap.containsKey(pair.get(0))) {
-                                        distanceMap.put(pair.get(0), new HashMap<String, Double>());
-                                    }
-                                    Map<String, Double> map = distanceMap.get(pair.get(0));
-                                    map.put(pair.get(1), value);
-                                    distanceMap.put(pair.get(0), map);
-                                }
-                            }
-                        }
-                    } else {
-                        if (!distanceMap.containsKey(pair.get(0))) {
-                            distanceMap.put(pair.get(0), new HashMap<String, Double>());
-                        }
-                        Map<String, Double> map = distanceMap.get(pair.get(0));
-                        map.put(pair.get(1), 0.0);
-                        distanceMap.put(pair.get(0), map);
+                    if (!distanceMap.containsKey(pair.get(0))) {
+                        distanceMap.put(pair.get(0), new HashMap<String, Double>());
                     }
+                    Map<String, Double> map = distanceMap.get(pair.get(0));
+                    map.put(pair.get(1), value);
+                    distanceMap.put(pair.get(0), map);
                 }
-
-            } catch (NoSuchElementException e) {
-                end = true;
-            } catch (ClientException e) {
-                e.printStackTrace();
             } catch (TException e) {
                 e.printStackTrace();
             }
         }
+
         return distanceMap;
     }
 
