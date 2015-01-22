@@ -870,7 +870,7 @@ public class MatchSubgraphs {
 
         Graph graph = new Graph(graphName);
 
-        String query = String.format("SELECT * from subgraphs where graph = '%s'", graphName);
+        String query = String.format("SELECT id from subgraphs where graph = '%s' and type = 'vertex' KEYS_ONLY", graphName);
 
         HqlResult hqlResult = null;
         try {
@@ -878,43 +878,44 @@ public class MatchSubgraphs {
             if (hqlResult.getCells().size() > 0) {
                 // Get vertices
                 for (Cell cell : hqlResult.getCells()) {
-                    ByteBuffer typeBuffer = client.get_cell(ns, "subgraphs", cell.getKey().getRow(), "type");
-                    String type = new String(typeBuffer.array(), typeBuffer.position(), typeBuffer.remaining());
-                    if (type.equals("vertex")) {
-                        ByteBuffer idBuffer = client.get_cell(ns, "subgraphs", cell.getKey().getRow(), "id");
-                        long id = Long.parseLong(new String(idBuffer.array(), idBuffer.position(), idBuffer.remaining()));
+                    ByteBuffer idBuffer = client.get_cell(ns, "subgraphs", cell.getKey().getRow(), "id");
+                    long id = Long.parseLong(new String(idBuffer.array(), idBuffer.position(), idBuffer.remaining()));
 
-                        ByteBuffer labelBuffer = client.get_cell(ns, "subgraphs", cell.getKey().getRow(), "label");
-                        String label = new String(labelBuffer.array(), labelBuffer.position(), labelBuffer.remaining());
+                    ByteBuffer labelBuffer = client.get_cell(ns, "subgraphs", cell.getKey().getRow(), "label");
+                    String label = new String(labelBuffer.array(), labelBuffer.position(), labelBuffer.remaining());
 
-                        Vertex vertex = new Vertex(label, id);
-                        graph.addVertex(vertex);
-                    }
+                    Vertex vertex = new Vertex(label, id);
+                    graph.addVertex(vertex);
                 }
+            }
+        } catch (TException e) {
+            e.printStackTrace();
+        }
+
+        query = String.format("SELECT type from subgraphs where graph = '%s' and type = 'edge' KEYS_ONLY", graphName);
+
+        try {
+            hqlResult = client.hql_query(ns, query);
+            if (hqlResult.getCells().size() > 0) {
                 // Get edges
                 for (Cell cell : hqlResult.getCells()) {
-                    ByteBuffer typeBuffer = client.get_cell(ns, "subgraphs", cell.getKey().getRow(), "type");
-                    String type = new String(typeBuffer.array(), typeBuffer.position(), typeBuffer.remaining());
-                    if (type.equals("edge")) {
+                    ByteBuffer sourceBuffer = client.get_cell(ns, "subgraphs", cell.getKey().getRow(), "source");
+                    long source = Long.parseLong(new String(sourceBuffer.array(), sourceBuffer.position(), sourceBuffer.remaining()));
 
-                        ByteBuffer sourceBuffer = client.get_cell(ns, "subgraphs", cell.getKey().getRow(), "source");
-                        long source = Long.parseLong(new String(sourceBuffer.array(), sourceBuffer.position(), sourceBuffer.remaining()));
+                    ByteBuffer targetBuffer = client.get_cell(ns, "subgraphs", cell.getKey().getRow(), "target");
+                    long target = Long.parseLong(new String(targetBuffer.array(), targetBuffer.position(), targetBuffer.remaining()));
 
-                        ByteBuffer targetBuffer = client.get_cell(ns, "subgraphs", cell.getKey().getRow(), "target");
-                        long target = Long.parseLong(new String(targetBuffer.array(), targetBuffer.position(), targetBuffer.remaining()));
+                    ByteBuffer labelBuffer = client.get_cell(ns, "subgraphs", cell.getKey().getRow(), "label");
+                    String label = new String(labelBuffer.array(), labelBuffer.position(), labelBuffer.remaining());
 
-                        ByteBuffer labelBuffer = client.get_cell(ns, "subgraphs", cell.getKey().getRow(), "label");
-                        String label = new String(labelBuffer.array(), labelBuffer.position(), labelBuffer.remaining());
-
-                        Vertex sourceVertex = graph.getVertex(source);
-                        Vertex targetVertex = graph.getVertex(target);
-                        Edge edge = new Edge(label, targetVertex);
-                        sourceVertex.addEdge(edge);
-                        graph.updateVertex(sourceVertex);
-                    }
+                    Vertex sourceVertex = graph.getVertex(source);
+                    Vertex targetVertex = graph.getVertex(target);
+                    Edge edge = new Edge(label, targetVertex);
+                    sourceVertex.addEdge(edge);
+                    graph.updateVertex(sourceVertex);
                 }
-
             }
+
         } catch (TException e) {
             e.printStackTrace();
         }
