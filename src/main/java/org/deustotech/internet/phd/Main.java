@@ -47,7 +47,7 @@ public class Main {
                     System.out.println("Invalid number of parameters!");
                     exit(1);
                 }
-                GenerateAlignments.run(args[1], args[2]);
+                GenerateAlignments.run(args[1], args[2], Boolean.parseBoolean(args[3]));
                 break;
             case "testdistances":
                 TestDistances.run(args[1]);

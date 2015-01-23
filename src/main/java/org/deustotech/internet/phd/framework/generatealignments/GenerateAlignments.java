@@ -35,7 +35,7 @@ public class GenerateAlignments {
             "basicSynonymDistance"
     };
 
-    public static void run(String wordnetDir, String wordnetVersion) {
+    public static void run(String wordnetDir, String wordnetVersion, boolean matchOntologies) {
         Logger logger = Logger.getLogger(GenerateAlignments.class.getName());
         ThriftClient client = null;
         try {
@@ -86,16 +86,16 @@ public class GenerateAlignments {
         }
 
         logger.info("Aligning vertices...");
-        generateSimilarities(client, ns, "vertex", wordnetDir, wordnetVersion);
+        generateSimilarities(client, ns, "vertex", wordnetDir, wordnetVersion, matchOntologies);
         logger.info("Aligning edges...");
-        generateSimilarities(client, ns, "edge", wordnetDir, wordnetVersion);
+        generateSimilarities(client, ns, "edge", wordnetDir, wordnetVersion, matchOntologies);
         logger.info("Done!");
 
         client.close();
 
     }
 
-    private static void generateSimilarities(ThriftClient client, long ns, String type, String wordnetDir, String wordnetVersion) {
+    private static void generateSimilarities(ThriftClient client, long ns, String type, String wordnetDir, String wordnetVersion, boolean matchOntologies) {
 
         String query = String.format("SELECT * from subgraphs where type = '%s'", type);
 
@@ -126,7 +126,8 @@ public class GenerateAlignments {
         List<Cell> cells = new ArrayList<>();
         try {
             while ((pair = labelPermutations.next()) != null) {
-                if (!getNamespace(pair.get(0)).equals(getNamespace(pair.get(1)))) {
+
+                if (!getNamespace(pair.get(0)).equals(getNamespace(pair.get(1))) || matchOntologies) {
                     double accum = 0.0;
 
                     for (String strDistance : STRING_DISTANCES) {
