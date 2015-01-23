@@ -60,19 +60,22 @@ public class GenerateAlignments {
 
         ColumnFamilySpec cf = new ColumnFamilySpec();
         cf.setName("source");
+        cf.setValue_index(true);
         columnFamilies.put("source", cf);
 
         cf = new ColumnFamilySpec();
         cf.setName("target");
+        cf.setValue_index(true);
         columnFamilies.put("target", cf);
 
         cf = new ColumnFamilySpec();
         cf.setName("distance");
+        cf.setValue_index(true);
         columnFamilies.put("distance", cf);
 
         cf = new ColumnFamilySpec();
-        cf.setName("value");
-        columnFamilies.put("value", cf);
+        cf.setName("val");
+        columnFamilies.put("val", cf);
 
         schema.setColumn_families(columnFamilies);
 
@@ -175,7 +178,7 @@ public class GenerateAlignments {
 
                         key = new Key();
                         key.setRow(keyID);
-                        key.setColumn_family("value");
+                        key.setColumn_family("val");
                         cell = new Cell();
                         cell.setKey(key);
 
@@ -238,7 +241,7 @@ public class GenerateAlignments {
 
                         key = new Key();
                         key.setRow(keyID);
-                        key.setColumn_family("value");
+                        key.setColumn_family("val");
                         cell = new Cell();
                         cell.setKey(key);
 
@@ -299,7 +302,7 @@ public class GenerateAlignments {
 
                     key = new Key();
                     key.setRow(keyID);
-                    key.setColumn_family("value");
+                    key.setColumn_family("val");
                     cell = new Cell();
                     cell.setKey(key);
 
