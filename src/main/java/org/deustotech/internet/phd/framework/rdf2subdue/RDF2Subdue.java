@@ -34,7 +34,7 @@ public class RDF2Subdue {
         if (!cont) {
             generateId(dataset);
         }
-        writeFile(dataset, outputDir);
+        //writeFile(dataset, outputDir);
     }
 
     private static void writeFile(String dataset, String outputDir) {
@@ -61,27 +61,6 @@ public class RDF2Subdue {
         new File(dir).mkdir();
         logger.info("Counting vertices...");
 
-        /*HqlResult hqlVertexResult = null;
-        try {
-            hqlVertexResult = client.hql_query(ns, String.format("SELECT * from %s WHERE type = 'vertex'", dataset));
-        } catch (TException e) {
-            e.printStackTrace();
-        }
-
-        HqlResult hqlEdgeResult = null;
-        try {
-            hqlEdgeResult = client.hql_query(ns, String.format("SELECT * from %s WHERE type = 'edge'", dataset));
-        } catch (TException e) {
-            e.printStackTrace();
-        }*/
-
-        /*for (Cell cell : hqlVertexResult.getCells()) {
-            total++;
-        }*/
-        //Jedis jedis = new Jedis("localhost");
-        //long total = (long) jedis.eval("return #redis.call('keys', 'rdf2subdue:ibm:vertex:*')");
-
-
         boolean end = false;
         int limit = 1000;
         long lowerLimit = 1;
@@ -103,7 +82,22 @@ public class RDF2Subdue {
                 }
                 BufferedWriter bw = new BufferedWriter(fw);
 
-                for (long i = lowerLimit; i <= upperLimit; i++) {
+                String query = String.format("SELECT id FROM %s WHERE id >= %s AND id < %s KEYS_ONLY", dataset, lowerLimit, upperLimit);
+                try {
+                    HqlResult hqlResult = client.hql_query(ns, query);
+                    if (hqlResult.getCells().size() > 0) {
+                        for (Cell cell : hqlResult.getCells()) {
+                            ByteBuffer labelBuffer = client.get_cell(ns, dataset.replace("-", "_"), cell.getKey().getRow(), "label");
+                            String label = new String(labelBuffer.array(), labelBuffer.position(), labelBuffer.remaining());
+                            //bw.write(String.format("v %s %s\n", i, label));
+                        }
+                    }
+                } catch (TException e) {
+                    e.printStackTrace();
+                }
+
+
+                /*for (long i = lowerLimit; i <= upperLimit; i++) {
                     try {
                         String query = String.format("SELECT id from %s WHERE id = '%s'", dataset.replace("-", "_"), i);
                         HqlResult hqlResult = client.hql_query(ns, query);
@@ -167,7 +161,7 @@ public class RDF2Subdue {
                     bw.close();
                 } catch (IOException e) {
                     e.printStackTrace();
-                }
+                }*/
 
             } else {
                 logger.info(String.format("Skipping %s_%s.g", dataset, count));
@@ -228,18 +222,22 @@ public class RDF2Subdue {
         Map columnFamilies = new HashMap();
         ColumnFamilySpec cf = new ColumnFamilySpec();
         cf.setName("id");
+        cf.setValue_index(true);
         columnFamilies.put("id", cf);
 
         cf = new ColumnFamilySpec();
         cf.setName("label");
+        cf.setValue_index(true);
         columnFamilies.put("label", cf);
 
         cf = new ColumnFamilySpec();
         cf.setName("type");
+        cf.setValue_index(true);
         columnFamilies.put("type", cf);
 
         cf = new ColumnFamilySpec();
         cf.setName("source");
+        cf.setValue_index(true);
         columnFamilies.put("source", cf);
 
         cf = new ColumnFamilySpec();
@@ -255,153 +253,35 @@ public class RDF2Subdue {
         }
 
         VirtGraph graph = new VirtGraph("http://" + dataset, connectionURL.toString(), prop.getProperty("virtuoso_user"), prop.getProperty("virtuoso_password"));
-        /* Query query = QueryFactory.create(String.format("SELECT DISTINCT ?s ?class WHERE {?s a ?class} ORDER BY ?S OFFSET %s LIMIT %s", offsetQ1, LIMIT));
-        VirtuosoQueryExecution vqe = VirtuosoQueryExecutionFactory.create(query, graph);
-        ResultSet results = vqe.execSelect(); */
+
         logger.info("Generating vertices...");
 
         long id = 1;
+        long offset = 0;
 
-        Jedis jedis = new Jedis("localhost");
-        boolean end;
-        long count;
-        List cells;
-        if (!jedis.exists(String.format("rdf2subdue:%s:q1", dataset))) {
-
-            long offsetQ1 = 0;
-
-            if (jedis.exists(String.format("rdf2subdue:%s:offsetQ1", dataset))) {
-                offsetQ1 = Long.parseLong(jedis.get((String.format("rdf2subdue:%s:offsetQ1", dataset))));
-                id = Long.parseLong(jedis.get(String.format("rdf2subdue:%s:maxID", dataset)));
-            }
-
-            count = 0;
-            cells = new ArrayList();
-            end = false;
-            while (!end) {
-                Query query = QueryFactory.create(String.format("SELECT DISTINCT ?s ?class WHERE {?s a ?class} OFFSET %s LIMIT %s", offsetQ1, LIMIT));
-                VirtuosoQueryExecution vqe = VirtuosoQueryExecutionFactory.create(query, graph);
-                ResultSet results = vqe.execSelect();
-
-                while (results.hasNext()) {
-                    QuerySolution result = results.next();
-                    String subject = result.getResource("s").getURI();
-                    String clazz = result.getResource("class").getURI();
-
-                    jedis.lpush(String.format("rdf2subdue:%s:vertex:%s", dataset, subject), String.valueOf(id));
-
-                    Key key = null;
-                    Cell cell = null;
-
-                    String keyId = UUID.randomUUID().toString();
-
-                    key = new Key();
-                    key.setRow(keyId);
-                    key.setColumn_family("id");
-                    cell = new Cell();
-                    cell.setKey(key);
-
-                    try {
-                        cell.setValue(String.valueOf(id).getBytes("UTF-8"));
-                    } catch (UnsupportedEncodingException e) {
-                        e.printStackTrace();
-                    }
-
-                    cells.add(cell);
-
-                    key = new Key();
-                    key.setRow(keyId);
-                    key.setColumn_family("label");
-                    cell = new Cell();
-                    cell.setKey(key);
-                    try {
-                        cell.setValue(String.format("<%s>", clazz).getBytes("UTF-8"));
-                    } catch (UnsupportedEncodingException e) {
-                        e.printStackTrace();
-                    }
-                    cells.add(cell);
-
-                    key = new Key();
-                    key.setRow(keyId);
-                    key.setColumn_family("type");
-                    cell = new Cell();
-                    cell.setKey(key);
-                    try {
-                        cell.setValue("vertex".getBytes("UTF-8"));
-                    } catch (UnsupportedEncodingException e) {
-                        e.printStackTrace();
-                    }
-                    cells.add(cell);
-
-                    id++;
-
-
-
-                    jedis.set(String.format("rdf2subdue:%s:maxID", dataset), String.valueOf(id));
-
-                    count++;
-                    if (count >= 200000) {
-                        try {
-                            client.set_cells(ns, dataset.replace("-", "_"), cells);
-                            cells = new ArrayList();
-                            count = 0;
-                        } catch (TException e) {
-                            e.printStackTrace();
-                        }
-                    }
+        //OFFSET AND LIMIT
+        while(true) {
+            List cells = new ArrayList();
+            Query sparqlQuery = QueryFactory.create(String.format("SELECT DISTINCT ?s ?p ?o WHERE {?s a ?class . ?s ?p ?o } OFFSET %s LIMIT %s", offset, LIMIT));
+            VirtuosoQueryExecution vqe = VirtuosoQueryExecutionFactory.create(sparqlQuery, graph);
+            ResultSet results = vqe.execSelect();
+            while (results.hasNext()) {
+                QuerySolution result = results.next();
+                String subject = result.getResource("s").getURI();
+                String predicate = result.getResource("p").getURI();
+                String object;
+                if (result.get("o").isLiteral()) {
+                    object = result.getLiteral("o").getString();
+                } else {
+                    object = result.getResource("o").getURI();
                 }
 
-                if (results.getRowNumber() <= 0) {
-                    end = true;
-                }
-
-                vqe.close();
-                offsetQ1 += LIMIT;
-
-                jedis.set(String.format("rdf2subdue:%s:offsetQ1", dataset), String.valueOf(offsetQ1));
-
-            }
-
-            try {
-                client.set_cells(ns, dataset.replace("-", "_"), cells);
-            } catch (TException e) {
-                e.printStackTrace();
-            }
-
-        }
-
-        jedis.set(String.format("rdf2subdue:%s:q1", dataset), "1");
-
-        end = false;
-
-        count = 0;
-        cells = new ArrayList();
-        if (!jedis.exists(String.format("rdf2subdue:%s:q2", dataset))) {
-            long offsetQ2 = 0;
-
-            if (jedis.exists(String.format("rdf2subdue:%s:offsetQ2", dataset))) {
-                offsetQ2 = Long.parseLong(jedis.get((String.format("rdf2subdue:%s:offsetQ2", dataset))));
-                id = Long.parseLong(jedis.get(String.format("rdf2subdue:%s:maxID", dataset)));
-            }
-
-            while (!end) {
-
-                Query query = QueryFactory.create(String.format("SELECT DISTINCT ?o WHERE { ?s ?p ?o . FILTER EXISTS { ?s a ?class } . FILTER NOT EXISTS { ?o ?p2 ?o2 } } OFFSET %s LIMIT %s", offsetQ2, LIMIT));
-                VirtuosoQueryExecution vqe = VirtuosoQueryExecutionFactory.create(query, graph);
-                ResultSet results = vqe.execSelect();
-
-                long literalHash = 0;
-                while (results.hasNext()) {
-                    QuerySolution result = results.next();
-                    String object = result.get("o").toString();
-                    if (result.get("o").isLiteral()) {
-                        if (!jedis.exists(String.format("rdf2subdue:%s:vertex:%s", dataset, object))) {
-                            List<Long> idList = new ArrayList<>();
-                            idList.add(id);
-                            for (Long item : idList) {
-                                jedis.lpush(String.format("rdf2subdue:%s:vertex:%s", dataset, object), String.valueOf(item));
-                            }
-
+                if (predicate.equals("http://www.w3.org/1999/02/22-rdf-syntax-ns#type")) {
+                    String hQuery = String.format("SELECT id FROM %s WHERE source = '%s' AND label = '%s'", dataset, subject, object);
+                    try {
+                        HqlResult hqlResult = client.hql_query(ns, hQuery);
+                        if (hqlResult.getCells().size() <= 0) {
+                            // No existe
                             Key key = null;
                             Cell cell = null;
 
@@ -421,26 +301,17 @@ public class RDF2Subdue {
 
                             cells.add(cell);
 
-                            if (result.get("o").isLiteral()) {
-                                //object = String.format("\"%s\"", object);
-                                object = String.valueOf(literalHash);
-                                literalHash++;
-                            } else {
-                                object = String.format("<%s>", object);
-                            }
-
                             key = new Key();
                             key.setRow(keyId);
                             key.setColumn_family("label");
                             cell = new Cell();
                             cell.setKey(key);
                             try {
-                                cell.setValue(object.getBytes("UTF-8"));
+                                cell.setValue(String.format("<%s>", object).getBytes("UTF-8"));
                             } catch (UnsupportedEncodingException e) {
                                 e.printStackTrace();
                             }
                             cells.add(cell);
-
 
                             key = new Key();
                             key.setRow(keyId);
@@ -454,173 +325,281 @@ public class RDF2Subdue {
                             }
                             cells.add(cell);
 
+                            key = new Key();
+                            key.setRow(keyId);
+                            key.setColumn_family("source");
+                            cell = new Cell();
+                            cell.setKey(key);
+                            try {
+                                cell.setValue(subject.getBytes("UTF-8"));
+                            } catch (UnsupportedEncodingException e) {
+                                e.printStackTrace();
+                            }
+                            cells.add(cell);
+
+
                             id++;
-
-                            jedis.set(String.format("rdf2subdue:%s:maxID", dataset), String.valueOf(id));
-
-                            count++;
-                            if (count >= 200000) {
-                                try {
-                                    client.set_cells(ns, dataset.replace("-", "_"), cells);
-                                    cells = new ArrayList();
-                                    count = 0;
-                                } catch (TException e) {
-                                    e.printStackTrace();
-                                }
-                            }
+                            client.set_cells(ns, dataset.replace("-", "_"), cells);
+                            cells = new ArrayList();
                         }
+                    } catch (TException e) {
+                        e.printStackTrace();
                     }
-                }
 
-                if (results.getRowNumber() <= 0) {
-                    end = true;
-                }
+                } else {
+                    if (result.get("o").isLiteral()) {
+                        Key key = null;
+                        Cell cell = null;
 
-                offsetQ2 += LIMIT;
+                        String keyId = UUID.randomUUID().toString();
 
-                jedis.set(String.format("rdf2subdue:%s:offsetQ2", dataset), String.valueOf(offsetQ2));
+                        key = new Key();
+                        key.setRow(keyId);
+                        key.setColumn_family("id");
+                        cell = new Cell();
+                        cell.setKey(key);
 
-                vqe.close();
-            }
+                        try {
+                            cell.setValue(String.valueOf(id).getBytes("UTF-8"));
+                        } catch (UnsupportedEncodingException e) {
+                            e.printStackTrace();
+                        }
 
-            try {
-                client.set_cells(ns, dataset.replace("-", "_"), cells);
-            } catch (TException e) {
-                e.printStackTrace();
-            }
+                        cells.add(cell);
 
-        }
+                        key = new Key();
+                        key.setRow(keyId);
+                        key.setColumn_family("label");
+                        cell = new Cell();
+                        cell.setKey(key);
+                        try {
+                            cell.setValue("LITERAL".getBytes("UTF-8"));
+                        } catch (UnsupportedEncodingException e) {
+                            e.printStackTrace();
+                        }
+                        cells.add(cell);
 
-        jedis.set(String.format("rdf2subdue:%s:q2", dataset), "1");
+                        key = new Key();
+                        key.setRow(keyId);
+                        key.setColumn_family("type");
+                        cell = new Cell();
+                        cell.setKey(key);
+                        try {
+                            cell.setValue("vertex".getBytes("UTF-8"));
+                        } catch (UnsupportedEncodingException e) {
+                            e.printStackTrace();
+                        }
+                        cells.add(cell);
 
-        if (!jedis.exists(String.format("rdf2subdue:%s:q3", dataset))) {
+                        key = new Key();
+                        key.setRow(keyId);
+                        key.setColumn_family("source");
+                        cell = new Cell();
+                        cell.setKey(key);
+                        try {
+                            cell.setValue(object.replace("'", "\'").getBytes("UTF-8"));
+                        } catch (UnsupportedEncodingException e) {
+                            e.printStackTrace();
+                        }
+                        cells.add(cell);
 
-            end = false;
-            count = 0;
-            cells = new ArrayList();
-            long offsetQ3 = 0;
+                        id++;
+                        try {
+                            client.set_cells(ns, dataset.replace("-", "_"), cells);
+                        } catch (TException e) {
+                            e.printStackTrace();
+                        }
+                        cells = new ArrayList();
+                    } else {
+                        String hQuery = String.format("SELECT id FROM %s WHERE source = '%s'", dataset, object);
+                        try {
+                            HqlResult hqlResult = client.hql_query(ns, hQuery);
+                            if (hqlResult.getCells().size() <= 0) {
 
-            if (jedis.exists(String.format("rdf2subdue:%s:offsetQ3", dataset))) {
-                offsetQ3 = Long.parseLong(jedis.get((String.format("rdf2subdue:%s:offsetQ3", dataset))));
-            }
+                                Query classQuery = QueryFactory.create(String.format("SELECT DISTINCT ?class WHERE {<%s> a ?class}", object));
+                                VirtuosoQueryExecution classVqe = VirtuosoQueryExecutionFactory.create(classQuery, graph);
+                                ResultSet classResults = classVqe.execSelect();
 
-            while (!end) {
+                                while (classResults.hasNext()) {
 
-                Query query = QueryFactory.create(String.format("SELECT DISTINCT ?s ?p ?o WHERE { ?s ?p ?o . FILTER EXISTS { ?s a ?class } } OFFSET %s LIMIT %s", offsetQ3, LIMIT));
-                VirtuosoQueryExecution vqe = VirtuosoQueryExecutionFactory.create(query, graph);
-                ResultSet results = vqe.execSelect();
+                                    QuerySolution classSolution = classResults.next();
+                                    String clazz = classSolution.getResource("class").getURI();
 
-                while (results.hasNext()) {
-                    QuerySolution result = results.next();
-                    String predicate = result.get("p").toString();
-                    if (!predicate.equals(RDF.type.getURI())) {
-                        List<String> sourceIdList = jedis.lrange(String.format("rdf2subdue:%s:vertex:%s", dataset, result.get("s").toString()), 0, jedis.llen(String.format("rdf2subdue:%s:vertex:%s", dataset, result.get("s").toString())));
-                        if (sourceIdList != null) {
-                            for (String sourceId : sourceIdList) {
-                                List<String> targetIdList = jedis.lrange(String.format("rdf2subdue:%s:vertex:%s", dataset, result.get("o").toString()), 0, jedis.llen(String.format("rdf2subdue:%s:vertex:%s", dataset, result.get("o").toString())));
-                                if (targetIdList != null) {
-                                    for (String targetId : targetIdList) {
-                                        Key key = null;
-                                        Cell cell = null;
+                                    Key key = null;
+                                    Cell cell = null;
 
-                                        String keyId = UUID.randomUUID().toString();
+                                    String keyId = UUID.randomUUID().toString();
 
-                                        key = new Key();
-                                        key.setRow(keyId);
-                                        key.setColumn_family("source");
-                                        cell = new Cell();
-                                        cell.setKey(key);
-                                        try {
-                                            cell.setValue(String.valueOf(sourceId).getBytes("UTF-8"));
-                                        } catch (UnsupportedEncodingException e) {
-                                            e.printStackTrace();
-                                        }
-                                        cells.add(cell);
+                                    key = new Key();
+                                    key.setRow(keyId);
+                                    key.setColumn_family("id");
+                                    cell = new Cell();
+                                    cell.setKey(key);
 
-                                        key = new Key();
-                                        key.setRow(keyId);
-                                        key.setColumn_family("target");
-                                        cell = new Cell();
-                                        cell.setKey(key);
-                                        try {
-                                            cell.setValue(String.valueOf(targetId).getBytes("UTF-8"));
-                                        } catch (UnsupportedEncodingException e) {
-                                            e.printStackTrace();
-                                        }
-                                        cells.add(cell);
-
-                                        key = new Key();
-                                        key.setRow(keyId);
-                                        key.setColumn_family("label");
-                                        cell = new Cell();
-                                        cell.setKey(key);
-                                        try {
-                                            cell.setValue(String.format("<%s>", predicate).getBytes("UTF-8"));
-                                        } catch (UnsupportedEncodingException e) {
-                                            e.printStackTrace();
-                                        }
-                                        cells.add(cell);
-
-                                        key = new Key();
-                                        key.setRow(keyId);
-                                        key.setColumn_family("type");
-                                        cell = new Cell();
-                                        cell.setKey(key);
-                                        try {
-                                            cell.setValue("edge".getBytes("UTF-8"));
-                                        } catch (UnsupportedEncodingException e) {
-                                            e.printStackTrace();
-                                        }
-                                        cells.add(cell);
-
-                                        count++;
-                                        if (count >= 200000) {
-                                            try {
-                                                client.set_cells(ns, dataset.replace("-", "_"), cells);
-                                                cells = new ArrayList();
-                                                count = 0;
-                                            } catch (TException e) {
-                                                e.printStackTrace();
-                                            }
-                                        }
-
+                                    try {
+                                        cell.setValue(String.valueOf(id).getBytes("UTF-8"));
+                                    } catch (UnsupportedEncodingException e) {
+                                        e.printStackTrace();
                                     }
+
+                                    cells.add(cell);
+
+                                    key = new Key();
+                                    key.setRow(keyId);
+                                    key.setColumn_family("label");
+                                    cell = new Cell();
+                                    cell.setKey(key);
+                                    try {
+                                        cell.setValue(clazz.getBytes("UTF-8"));
+                                    } catch (UnsupportedEncodingException e) {
+                                        e.printStackTrace();
+                                    }
+                                    cells.add(cell);
+
+                                    key = new Key();
+                                    key.setRow(keyId);
+                                    key.setColumn_family("type");
+                                    cell = new Cell();
+                                    cell.setKey(key);
+                                    try {
+                                        cell.setValue("vertex".getBytes("UTF-8"));
+                                    } catch (UnsupportedEncodingException e) {
+                                        e.printStackTrace();
+                                    }
+                                    cells.add(cell);
+
+                                    key = new Key();
+                                    key.setRow(keyId);
+                                    key.setColumn_family("source");
+                                    cell = new Cell();
+                                    cell.setKey(key);
+                                    try {
+                                        cell.setValue(object.getBytes("UTF-8"));
+                                    } catch (UnsupportedEncodingException e) {
+                                        e.printStackTrace();
+                                    }
+                                    cells.add(cell);
+
+                                    id++;
+                                    try {
+                                        client.set_cells(ns, dataset.replace("-", "_"), cells);
+                                    } catch (TException e) {
+                                        e.printStackTrace();
+                                    }
+                                    cells = new ArrayList();
                                 }
                             }
+                        } catch (TException e) {
+                            e.printStackTrace();
+                        }
+                    }
+
+                    // Edge
+                    List<String> sourceIDList = new ArrayList<>();
+                    List<String> targetIDList = new ArrayList<>();
+
+                    String sourceQuery = String.format("SELECT id FROM %s WHERE source = '%s' KEYS_ONLY", dataset, subject);
+                    String targetQuery = String.format("SELECT id FROM %s WHERE source = '%s' KEYS_ONLY", dataset, object.replace("'", "\'"));
+
+                    try {
+                        HqlResult hqlResult = client.hql_query(ns, sourceQuery);
+                        for (Cell cell : hqlResult.getCells()) {
+                            ByteBuffer labelBuffer = client.get_cell(ns, dataset.replace("-", "_"), cell.getKey().getRow(), "id");
+                            String stringID = new String(labelBuffer.array(), labelBuffer.position(), labelBuffer.remaining());
+                            sourceIDList.add(stringID);
+                        }
+                    } catch (TException e) {
+                        e.printStackTrace();
+                    }
+
+                    try {
+                        HqlResult hqlResult = client.hql_query(ns, targetQuery);
+                        for (Cell cell : hqlResult.getCells()) {
+                            ByteBuffer labelBuffer = client.get_cell(ns, dataset.replace("-", "_"), cell.getKey().getRow(), "id");
+                            String stringID = new String(labelBuffer.array(), labelBuffer.position(), labelBuffer.remaining());
+                            targetIDList.add(stringID);
+                        }
+                    } catch (TException e) {
+                        e.printStackTrace();
+                    }
+
+                    for (String source : sourceIDList) {
+                        for (String target : targetIDList) {
+                            Key key = null;
+                            Cell cell = null;
+
+                            String keyId = UUID.randomUUID().toString();
+
+                            key = new Key();
+                            key.setRow(keyId);
+                            key.setColumn_family("source");
+                            cell = new Cell();
+                            cell.setKey(key);
+
+                            try {
+                                cell.setValue(String.valueOf(source).getBytes("UTF-8"));
+                            } catch (UnsupportedEncodingException e) {
+                                e.printStackTrace();
+                            }
+
+                            cells.add(cell);
+
+                            key = new Key();
+                            key.setRow(keyId);
+                            key.setColumn_family("target");
+                            cell = new Cell();
+                            cell.setKey(key);
+
+                            try {
+                                cell.setValue(String.valueOf(target).getBytes("UTF-8"));
+                            } catch (UnsupportedEncodingException e) {
+                                e.printStackTrace();
+                            }
+
+                            cells.add(cell);
+
+                            key = new Key();
+                            key.setRow(keyId);
+                            key.setColumn_family("label");
+                            cell = new Cell();
+                            cell.setKey(key);
+
+                            try {
+                                cell.setValue(String.valueOf(predicate).getBytes("UTF-8"));
+                            } catch (UnsupportedEncodingException e) {
+                                e.printStackTrace();
+                            }
+
+                            cells.add(cell);
+
+                            key = new Key();
+                            key.setRow(keyId);
+                            key.setColumn_family("type");
+                            cell = new Cell();
+                            cell.setKey(key);
+
+                            try {
+                                cell.setValue(String.valueOf("edge").getBytes("UTF-8"));
+                            } catch (UnsupportedEncodingException e) {
+                                e.printStackTrace();
+                            }
+
+                            cells.add(cell);
+
+                            try {
+                                client.set_cells(ns, dataset.replace("-", "_"), cells);
+                            } catch (TException e) {
+                                e.printStackTrace();
+                            }
+                            cells = new ArrayList();
                         }
                     }
                 }
-
-                int rowNumber = results.getRowNumber();
-
-                if (results.getRowNumber() <= 0) {
-                    end = true;
-                }
-
-                offsetQ3 += LIMIT;
-
-                jedis.set(String.format("rdf2subdue:%s:offsetQ3", dataset), String.valueOf(offsetQ3));
-
-                vqe.close();
             }
-
-            try {
-                client.set_cells(ns, dataset.replace("-", "_"), cells);
-            } catch (TException e) {
-                e.printStackTrace();
+            if (results.getRowNumber() <= 0) {
+                break;
             }
-
+            offset += LIMIT;
         }
-
-        jedis.set(String.format("rdf2subdue:%s:q3", dataset), "1");
-
-        try {
-            client.namespace_close(ns);
-            client.close();
-        } catch (TException e) {
-            e.printStackTrace();
-        }
-        jedis.close();
-        logger.info("Loading Done!");
     }
 }
