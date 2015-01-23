@@ -281,66 +281,8 @@ public class RDF2Subdue {
                     try {
                         HqlResult hqlResult = client.hql_query(ns, hQuery);
                         if (hqlResult.getCells().size() <= 0) {
-                            // No existe
-                            Key key = null;
-                            Cell cell = null;
-
-                            String keyId = UUID.randomUUID().toString();
-
-                            key = new Key();
-                            key.setRow(keyId);
-                            key.setColumn_family("id");
-                            cell = new Cell();
-                            cell.setKey(key);
-
-                            try {
-                                cell.setValue(String.valueOf(id).getBytes("UTF-8"));
-                            } catch (UnsupportedEncodingException e) {
-                                e.printStackTrace();
-                            }
-
-                            cells.add(cell);
-
-                            key = new Key();
-                            key.setRow(keyId);
-                            key.setColumn_family("label");
-                            cell = new Cell();
-                            cell.setKey(key);
-                            try {
-                                cell.setValue(String.format("<%s>", object).getBytes("UTF-8"));
-                            } catch (UnsupportedEncodingException e) {
-                                e.printStackTrace();
-                            }
-                            cells.add(cell);
-
-                            key = new Key();
-                            key.setRow(keyId);
-                            key.setColumn_family("type");
-                            cell = new Cell();
-                            cell.setKey(key);
-                            try {
-                                cell.setValue("vertex".getBytes("UTF-8"));
-                            } catch (UnsupportedEncodingException e) {
-                                e.printStackTrace();
-                            }
-                            cells.add(cell);
-
-                            key = new Key();
-                            key.setRow(keyId);
-                            key.setColumn_family("source");
-                            cell = new Cell();
-                            cell.setKey(key);
-                            try {
-                                cell.setValue(subject.getBytes("UTF-8"));
-                            } catch (UnsupportedEncodingException e) {
-                                e.printStackTrace();
-                            }
-                            cells.add(cell);
-
-
+                            cells = insertVertex(dataset, client, ns, id, cells, subject, object);
                             id++;
-                            client.set_cells(ns, dataset.replace("-", "_"), cells);
-                            cells = new ArrayList();
                         }
                     } catch (TException e) {
                         e.printStackTrace();
@@ -348,68 +290,14 @@ public class RDF2Subdue {
 
                 } else {
                     if (result.get("o").isLiteral()) {
-                        Key key = null;
-                        Cell cell = null;
-
-                        String keyId = UUID.randomUUID().toString();
-
-                        key = new Key();
-                        key.setRow(keyId);
-                        key.setColumn_family("id");
-                        cell = new Cell();
-                        cell.setKey(key);
 
                         try {
-                            cell.setValue(String.valueOf(id).getBytes("UTF-8"));
-                        } catch (UnsupportedEncodingException e) {
-                            e.printStackTrace();
-                        }
-
-                        cells.add(cell);
-
-                        key = new Key();
-                        key.setRow(keyId);
-                        key.setColumn_family("label");
-                        cell = new Cell();
-                        cell.setKey(key);
-                        try {
-                            cell.setValue("LITERAL".getBytes("UTF-8"));
-                        } catch (UnsupportedEncodingException e) {
-                            e.printStackTrace();
-                        }
-                        cells.add(cell);
-
-                        key = new Key();
-                        key.setRow(keyId);
-                        key.setColumn_family("type");
-                        cell = new Cell();
-                        cell.setKey(key);
-                        try {
-                            cell.setValue("vertex".getBytes("UTF-8"));
-                        } catch (UnsupportedEncodingException e) {
-                            e.printStackTrace();
-                        }
-                        cells.add(cell);
-
-                        key = new Key();
-                        key.setRow(keyId);
-                        key.setColumn_family("source");
-                        cell = new Cell();
-                        cell.setKey(key);
-                        try {
-                            cell.setValue(object.replace("'", "\'").getBytes("UTF-8"));
-                        } catch (UnsupportedEncodingException e) {
-                            e.printStackTrace();
-                        }
-                        cells.add(cell);
-
-                        id++;
-                        try {
-                            client.set_cells(ns, dataset.replace("-", "_"), cells);
+                            cells = insertVertex(dataset, client, ns, id, cells, object.replace("'", "\'"), "LITERAL");
                         } catch (TException e) {
                             e.printStackTrace();
                         }
-                        cells = new ArrayList();
+                        id++;
+
                     } else {
                         String hQuery = String.format("SELECT id FROM %s WHERE source = '%s'", dataset, object);
                         try {
@@ -424,69 +312,8 @@ public class RDF2Subdue {
 
                                     QuerySolution classSolution = classResults.next();
                                     String clazz = classSolution.getResource("class").getURI();
-
-                                    Key key = null;
-                                    Cell cell = null;
-
-                                    String keyId = UUID.randomUUID().toString();
-
-                                    key = new Key();
-                                    key.setRow(keyId);
-                                    key.setColumn_family("id");
-                                    cell = new Cell();
-                                    cell.setKey(key);
-
-                                    try {
-                                        cell.setValue(String.valueOf(id).getBytes("UTF-8"));
-                                    } catch (UnsupportedEncodingException e) {
-                                        e.printStackTrace();
-                                    }
-
-                                    cells.add(cell);
-
-                                    key = new Key();
-                                    key.setRow(keyId);
-                                    key.setColumn_family("label");
-                                    cell = new Cell();
-                                    cell.setKey(key);
-                                    try {
-                                        cell.setValue(clazz.getBytes("UTF-8"));
-                                    } catch (UnsupportedEncodingException e) {
-                                        e.printStackTrace();
-                                    }
-                                    cells.add(cell);
-
-                                    key = new Key();
-                                    key.setRow(keyId);
-                                    key.setColumn_family("type");
-                                    cell = new Cell();
-                                    cell.setKey(key);
-                                    try {
-                                        cell.setValue("vertex".getBytes("UTF-8"));
-                                    } catch (UnsupportedEncodingException e) {
-                                        e.printStackTrace();
-                                    }
-                                    cells.add(cell);
-
-                                    key = new Key();
-                                    key.setRow(keyId);
-                                    key.setColumn_family("source");
-                                    cell = new Cell();
-                                    cell.setKey(key);
-                                    try {
-                                        cell.setValue(object.getBytes("UTF-8"));
-                                    } catch (UnsupportedEncodingException e) {
-                                        e.printStackTrace();
-                                    }
-                                    cells.add(cell);
-
+                                    cells = insertVertex(dataset, client, ns, id, cells, object, clazz);
                                     id++;
-                                    try {
-                                        client.set_cells(ns, dataset.replace("-", "_"), cells);
-                                    } catch (TException e) {
-                                        e.printStackTrace();
-                                    }
-                                    cells = new ArrayList();
                                 }
                             }
                         } catch (TException e) {
@@ -525,73 +352,7 @@ public class RDF2Subdue {
 
                     for (String source : sourceIDList) {
                         for (String target : targetIDList) {
-                            Key key = null;
-                            Cell cell = null;
-
-                            String keyId = UUID.randomUUID().toString();
-
-                            key = new Key();
-                            key.setRow(keyId);
-                            key.setColumn_family("source");
-                            cell = new Cell();
-                            cell.setKey(key);
-
-                            try {
-                                cell.setValue(String.valueOf(source).getBytes("UTF-8"));
-                            } catch (UnsupportedEncodingException e) {
-                                e.printStackTrace();
-                            }
-
-                            cells.add(cell);
-
-                            key = new Key();
-                            key.setRow(keyId);
-                            key.setColumn_family("target");
-                            cell = new Cell();
-                            cell.setKey(key);
-
-                            try {
-                                cell.setValue(String.valueOf(target).getBytes("UTF-8"));
-                            } catch (UnsupportedEncodingException e) {
-                                e.printStackTrace();
-                            }
-
-                            cells.add(cell);
-
-                            key = new Key();
-                            key.setRow(keyId);
-                            key.setColumn_family("label");
-                            cell = new Cell();
-                            cell.setKey(key);
-
-                            try {
-                                cell.setValue(String.valueOf(predicate).getBytes("UTF-8"));
-                            } catch (UnsupportedEncodingException e) {
-                                e.printStackTrace();
-                            }
-
-                            cells.add(cell);
-
-                            key = new Key();
-                            key.setRow(keyId);
-                            key.setColumn_family("type");
-                            cell = new Cell();
-                            cell.setKey(key);
-
-                            try {
-                                cell.setValue(String.valueOf("edge").getBytes("UTF-8"));
-                            } catch (UnsupportedEncodingException e) {
-                                e.printStackTrace();
-                            }
-
-                            cells.add(cell);
-
-                            try {
-                                client.set_cells(ns, dataset.replace("-", "_"), cells);
-                            } catch (TException e) {
-                                e.printStackTrace();
-                            }
-                            cells = new ArrayList();
+                            cells = insertEdge(dataset, client, ns, cells, predicate, source, target);
                         }
                     }
                 }
@@ -601,5 +362,137 @@ public class RDF2Subdue {
             }
             offset += LIMIT;
         }
+    }
+
+    private static List insertEdge(String dataset, ThriftClient client, long ns, List cells, String predicate, String source, String target) {
+        Key key = null;
+        Cell cell = null;
+
+        String keyId = UUID.randomUUID().toString();
+
+        key = new Key();
+        key.setRow(keyId);
+        key.setColumn_family("source");
+        cell = new Cell();
+        cell.setKey(key);
+
+        try {
+            cell.setValue(String.valueOf(source).getBytes("UTF-8"));
+        } catch (UnsupportedEncodingException e) {
+            e.printStackTrace();
+        }
+
+        cells.add(cell);
+
+        key = new Key();
+        key.setRow(keyId);
+        key.setColumn_family("target");
+        cell = new Cell();
+        cell.setKey(key);
+
+        try {
+            cell.setValue(String.valueOf(target).getBytes("UTF-8"));
+        } catch (UnsupportedEncodingException e) {
+            e.printStackTrace();
+        }
+
+        cells.add(cell);
+
+        key = new Key();
+        key.setRow(keyId);
+        key.setColumn_family("label");
+        cell = new Cell();
+        cell.setKey(key);
+
+        try {
+            cell.setValue(String.valueOf(predicate).getBytes("UTF-8"));
+        } catch (UnsupportedEncodingException e) {
+            e.printStackTrace();
+        }
+
+        cells.add(cell);
+
+        key = new Key();
+        key.setRow(keyId);
+        key.setColumn_family("type");
+        cell = new Cell();
+        cell.setKey(key);
+
+        try {
+            cell.setValue(String.valueOf("edge").getBytes("UTF-8"));
+        } catch (UnsupportedEncodingException e) {
+            e.printStackTrace();
+        }
+
+        cells.add(cell);
+
+        try {
+            client.set_cells(ns, dataset.replace("-", "_"), cells);
+        } catch (TException e) {
+            e.printStackTrace();
+        }
+        cells = new ArrayList();
+        return cells;
+    }
+
+    private static List insertVertex(String dataset, ThriftClient client, long ns, long id, List cells, String subject, String object) throws TException {
+        Key key = null;
+        Cell cell = null;
+
+        String keyId = UUID.randomUUID().toString();
+
+        key = new Key();
+        key.setRow(keyId);
+        key.setColumn_family("id");
+        cell = new Cell();
+        cell.setKey(key);
+
+        try {
+            cell.setValue(String.valueOf(id).getBytes("UTF-8"));
+        } catch (UnsupportedEncodingException e) {
+            e.printStackTrace();
+        }
+
+        cells.add(cell);
+
+        key = new Key();
+        key.setRow(keyId);
+        key.setColumn_family("label");
+        cell = new Cell();
+        cell.setKey(key);
+        try {
+            cell.setValue(String.format("<%s>", object).getBytes("UTF-8"));
+        } catch (UnsupportedEncodingException e) {
+            e.printStackTrace();
+        }
+        cells.add(cell);
+
+        key = new Key();
+        key.setRow(keyId);
+        key.setColumn_family("type");
+        cell = new Cell();
+        cell.setKey(key);
+        try {
+            cell.setValue("vertex".getBytes("UTF-8"));
+        } catch (UnsupportedEncodingException e) {
+            e.printStackTrace();
+        }
+        cells.add(cell);
+
+        key = new Key();
+        key.setRow(keyId);
+        key.setColumn_family("source");
+        cell = new Cell();
+        cell.setKey(key);
+        try {
+            cell.setValue(subject.getBytes("UTF-8"));
+        } catch (UnsupportedEncodingException e) {
+            e.printStackTrace();
+        }
+        cells.add(cell);
+
+        client.set_cells(ns, dataset.replace("-", "_"), cells);
+        cells = new ArrayList();
+        return cells;
     }
 }
