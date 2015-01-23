@@ -783,28 +783,32 @@ public class MatchSubgraphs {
         boolean end = false;
 
         while(!end) {
-            List<String> pair = vertexPermutations.next();
-            String source = pair.get(0);
-            String target = pair.get(1);
-
-            String query = String.format("SELECT val FROM alignments WHERE source = '%s' and target = '%s' and distance = '%s' KEYS_ONLY", source, target, distance);
-
-            HqlResult hqlResult = null;
             try {
-                hqlResult = client.hql_query(ns, query);
-                for (Cell cell : hqlResult.getCells()) {
-                    ByteBuffer valueBuffer = client.get_cell(ns, "alignments", cell.getKey().getRow(), "val");
-                    double value = Double.valueOf(new String(valueBuffer.array(), valueBuffer.position(), valueBuffer.remaining()));
+                List<String> pair = vertexPermutations.next();
+                String source = pair.get(0);
+                String target = pair.get(1);
 
-                    if (!distanceMap.containsKey(pair.get(0))) {
-                        distanceMap.put(pair.get(0), new HashMap<String, Double>());
+                String query = String.format("SELECT val FROM alignments WHERE source = '%s' and target = '%s' and distance = '%s' KEYS_ONLY", source, target, distance);
+
+                HqlResult hqlResult = null;
+                try {
+                    hqlResult = client.hql_query(ns, query);
+                    for (Cell cell : hqlResult.getCells()) {
+                        ByteBuffer valueBuffer = client.get_cell(ns, "alignments", cell.getKey().getRow(), "val");
+                        double value = Double.valueOf(new String(valueBuffer.array(), valueBuffer.position(), valueBuffer.remaining()));
+
+                        if (!distanceMap.containsKey(pair.get(0))) {
+                            distanceMap.put(pair.get(0), new HashMap<String, Double>());
+                        }
+                        Map<String, Double> map = distanceMap.get(pair.get(0));
+                        map.put(pair.get(1), value);
+                        distanceMap.put(pair.get(0), map);
                     }
-                    Map<String, Double> map = distanceMap.get(pair.get(0));
-                    map.put(pair.get(1), value);
-                    distanceMap.put(pair.get(0), map);
+                } catch (TException e) {
+                    e.printStackTrace();
                 }
-            } catch (TException e) {
-                e.printStackTrace();
+            } catch (NoSuchElementException e) {
+                end = true;
             }
         }
 

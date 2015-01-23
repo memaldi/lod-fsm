@@ -1,3 +1,4 @@
+#!/bin/sh
 export WNDIR=/usr/local/WordNet-3.0/dict
 export MAVEN_OPTS=-Xmx24576m
 
