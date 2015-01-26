@@ -29,6 +29,7 @@ public class RDF2Subdue {
 
 
     private static int LIMIT = 1000;
+    private static int FLUSH_LIMIT = 200000;
 
     public static void run(String dataset, String outputDir, boolean cont) {
         if (!cont) {
@@ -219,6 +220,145 @@ public class RDF2Subdue {
 
         Schema schema = new Schema();
 
+        createTable(schema, client , ns, dataset);
+
+
+
+        VirtGraph graph = new VirtGraph("http://" + dataset, connectionURL.toString(), prop.getProperty("virtuoso_user"), prop.getProperty("virtuoso_password"));
+
+        logger.info("Generating vertices...");
+
+        long id = 1;
+        long offset = 0;
+        int flush = 0;
+
+        List<Cell> cellList = new ArrayList<>();
+        // Subjects
+        while(true) {
+            Query sparqlQuery = QueryFactory.create(String.format("SELECT DISTINCT ?s ?class WHERE {?s a ?class .} OFFSET %s LIMIT %s", offset, LIMIT));
+            VirtuosoQueryExecution vqe = VirtuosoQueryExecutionFactory.create(sparqlQuery, graph);
+            ResultSet results = vqe.execSelect();
+
+            while (results.hasNext()) {
+                QuerySolution next = results.next();
+                String subject = next.getResource("s").getURI();
+                if (subject != null) {
+                    String clazz = next.getResource("class").getURI();
+
+                    cellList.addAll(insertVertex(id, subject, clazz));
+                    id++;
+                    flush++;
+                }
+            }
+            if (flush >= FLUSH_LIMIT) {
+                try {
+                    client.set_cells(ns, dataset.replace("-", "_"), cellList);
+                    cellList = new ArrayList();
+                    flush = 0;
+                } catch (TException e) {
+                    e.printStackTrace();
+                }
+            }
+
+            if (results.getRowNumber() <= 0) {
+                break;
+            }
+            offset += LIMIT;
+        }
+
+        try {
+            client.set_cells(ns, dataset.replace("-", "_"), cellList);
+        } catch (TException e) {
+            e.printStackTrace();
+        }
+
+        logger.info("Generating edges...");
+        //Edges
+        offset = 0;
+        flush = 0;
+        cellList = new ArrayList<>();
+        while(true) {
+            Query sparqlQuery = QueryFactory.create(String.format("SELECT ?s ?p ?o WHERE { ?s a ?class . ?s ?p ?o . } OFFSET %s LIMIT %s", offset, LIMIT));
+            VirtuosoQueryExecution vqe = VirtuosoQueryExecutionFactory.create(sparqlQuery, graph);
+            ResultSet results = vqe.execSelect();
+
+            while (results.hasNext()) {
+                QuerySolution next = results.next();
+                String subject = next.getResource("s").getURI();
+                String predicate = next.getResource("p").getURI();
+                List<String> targetIDList = new ArrayList<>();
+                if (subject != null && !predicate.equals(RDF.type.getURI())) {
+
+                    if (next.get("o").isLiteral()) {
+                        String object = next.getLiteral("o").getString();
+                        cellList.addAll(insertVertex(id, object, "LITERAL"));
+                        String targetID = String.valueOf(id);
+                        id++;
+                        flush++;
+                        targetIDList.add(targetID);
+                    } else if (next.get("o").isURIResource()) {
+                        String object = next.getResource("o").getURI();
+                        String hqlQuery = String.format("SELECT id FROM %s WHERE source = '%s' KEYS_ONLY", dataset, object);
+                        try {
+                            HqlResult hqlResult = client.hql_query(ns, hqlQuery);
+                            if (hqlResult.getCells().size() > 0) {
+                                for (Cell cell : hqlResult.getCells()) {
+                                    ByteBuffer labelBuffer = client.get_cell(ns, dataset.replace("-", "_"), cell.getKey().getRow(), "id");
+                                    String targetID = new String(labelBuffer.array(), labelBuffer.position(), labelBuffer.remaining());
+                                    targetIDList.add(targetID);
+                                }
+                            }
+                        } catch (TException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                }
+
+                if (targetIDList.size() > 0) {
+                    String hqlQuery = String.format("SELECT id FROM %s WHERE source = '%s' KEYS_ONLY", dataset, subject);
+                    try {
+                        HqlResult hqlResult = client.hql_query(ns, hqlQuery);
+                        if (hqlResult.getCells().size() > 0) {
+                            for (Cell cell : hqlResult.getCells()) {
+                                ByteBuffer labelBuffer = client.get_cell(ns, dataset.replace("-", "_"), cell.getKey().getRow(), "id");
+                                String sourceID = new String(labelBuffer.array(), labelBuffer.position(), labelBuffer.remaining());
+                                for (String targetID : targetIDList) {
+                                    cellList.addAll(insertEdge(predicate, sourceID, targetID));
+                                }
+                            }
+                        }
+                    } catch (TException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+            if (flush >= FLUSH_LIMIT) {
+                try {
+                    client.set_cells(ns, dataset.replace("-", "_"), cellList);
+                    cellList = new ArrayList();
+                    flush = 0;
+                } catch (TException e) {
+                    e.printStackTrace();
+                }
+            }
+
+            if (results.getRowNumber() <= 0) {
+                break;
+            }
+            offset += LIMIT;
+        }
+
+        try {
+            client.set_cells(ns, dataset.replace("-", "_"), cellList);
+            cellList = new ArrayList();
+            flush = 0;
+        } catch (TException e) {
+            e.printStackTrace();
+        }
+        logger.info("end");
+    }
+
+    private static void createTable(Schema schema, ThriftClient client, long ns, String dataset) {
         Map columnFamilies = new HashMap();
         ColumnFamilySpec cf = new ColumnFamilySpec();
         cf.setName("id");
@@ -251,122 +391,13 @@ public class RDF2Subdue {
         } catch (TException e) {
             e.printStackTrace();
         }
-
-        VirtGraph graph = new VirtGraph("http://" + dataset, connectionURL.toString(), prop.getProperty("virtuoso_user"), prop.getProperty("virtuoso_password"));
-
-        logger.info("Generating vertices...");
-
-        long id = 1;
-        long offset = 0;
-
-        //OFFSET AND LIMIT
-        while(true) {
-            List cells = new ArrayList();
-            Query sparqlQuery = QueryFactory.create(String.format("SELECT DISTINCT ?s ?p ?o WHERE {?s a ?class . ?s ?p ?o } OFFSET %s LIMIT %s", offset, LIMIT));
-            VirtuosoQueryExecution vqe = VirtuosoQueryExecutionFactory.create(sparqlQuery, graph);
-            ResultSet results = vqe.execSelect();
-            while (results.hasNext()) {
-                QuerySolution result = results.next();
-                String subject = result.getResource("s").getURI();
-                String predicate = result.getResource("p").getURI();
-                String object;
-                if (result.get("o").isLiteral()) {
-                    object = result.getLiteral("o").getString();
-                } else {
-                    object = result.getResource("o").getURI();
-                }
-
-                if (predicate.equals("http://www.w3.org/1999/02/22-rdf-syntax-ns#type")) {
-                    String hQuery = String.format("SELECT id FROM %s WHERE source = '%s' AND label = '%s'", dataset, subject, object);
-                    try {
-                        HqlResult hqlResult = client.hql_query(ns, hQuery);
-                        if (hqlResult.getCells().size() <= 0) {
-                            cells = insertVertex(dataset, client, ns, id, cells, subject, object);
-                            id++;
-                        }
-                    } catch (TException e) {
-                        e.printStackTrace();
-                    }
-
-                } else {
-                    if (result.get("o").isLiteral()) {
-
-                        try {
-                            cells = insertVertex(dataset, client, ns, id, cells, object.replace("'", "\'"), "LITERAL");
-                        } catch (TException e) {
-                            e.printStackTrace();
-                        }
-                        id++;
-
-                    } else {
-                        String hQuery = String.format("SELECT id FROM %s WHERE source = '%s'", dataset, object);
-                        try {
-                            HqlResult hqlResult = client.hql_query(ns, hQuery);
-                            if (hqlResult.getCells().size() <= 0) {
-
-                                Query classQuery = QueryFactory.create(String.format("SELECT DISTINCT ?class WHERE {<%s> a ?class}", object));
-                                VirtuosoQueryExecution classVqe = VirtuosoQueryExecutionFactory.create(classQuery, graph);
-                                ResultSet classResults = classVqe.execSelect();
-
-                                while (classResults.hasNext()) {
-
-                                    QuerySolution classSolution = classResults.next();
-                                    String clazz = classSolution.getResource("class").getURI();
-                                    cells = insertVertex(dataset, client, ns, id, cells, object, clazz);
-                                    id++;
-                                }
-                            }
-                        } catch (TException e) {
-                            e.printStackTrace();
-                        }
-                    }
-
-                    // Edge
-                    List<String> sourceIDList = new ArrayList<>();
-                    List<String> targetIDList = new ArrayList<>();
-
-                    String sourceQuery = String.format("SELECT id FROM %s WHERE source = '%s' KEYS_ONLY", dataset, subject);
-                    String targetQuery = String.format("SELECT id FROM %s WHERE source = '%s' KEYS_ONLY", dataset, object.replace("'", "\'"));
-
-                    try {
-                        HqlResult hqlResult = client.hql_query(ns, sourceQuery);
-                        for (Cell cell : hqlResult.getCells()) {
-                            ByteBuffer labelBuffer = client.get_cell(ns, dataset.replace("-", "_"), cell.getKey().getRow(), "id");
-                            String stringID = new String(labelBuffer.array(), labelBuffer.position(), labelBuffer.remaining());
-                            sourceIDList.add(stringID);
-                        }
-                    } catch (TException e) {
-                        e.printStackTrace();
-                    }
-
-                    try {
-                        HqlResult hqlResult = client.hql_query(ns, targetQuery);
-                        for (Cell cell : hqlResult.getCells()) {
-                            ByteBuffer labelBuffer = client.get_cell(ns, dataset.replace("-", "_"), cell.getKey().getRow(), "id");
-                            String stringID = new String(labelBuffer.array(), labelBuffer.position(), labelBuffer.remaining());
-                            targetIDList.add(stringID);
-                        }
-                    } catch (TException e) {
-                        e.printStackTrace();
-                    }
-
-                    for (String source : sourceIDList) {
-                        for (String target : targetIDList) {
-                            cells = insertEdge(dataset, client, ns, cells, predicate, source, target);
-                        }
-                    }
-                }
-            }
-            if (results.getRowNumber() <= 0) {
-                break;
-            }
-            offset += LIMIT;
-        }
     }
 
-    private static List insertEdge(String dataset, ThriftClient client, long ns, List cells, String predicate, String source, String target) {
+    private static List<Cell> insertEdge(String predicate, String source, String target) {
         Key key = null;
         Cell cell = null;
+
+        List<Cell> cells = new ArrayList<>();
 
         String keyId = UUID.randomUUID().toString();
 
@@ -425,19 +456,14 @@ public class RDF2Subdue {
         }
 
         cells.add(cell);
-
-        try {
-            client.set_cells(ns, dataset.replace("-", "_"), cells);
-        } catch (TException e) {
-            e.printStackTrace();
-        }
-        cells = new ArrayList();
         return cells;
     }
 
-    private static List insertVertex(String dataset, ThriftClient client, long ns, long id, List cells, String subject, String object) throws TException {
+    private static List<Cell> insertVertex(long id, String source, String label) {
         Key key = null;
         Cell cell = null;
+        List<Cell> cells = new ArrayList<>();
+
 
         String keyId = UUID.randomUUID().toString();
 
@@ -461,7 +487,7 @@ public class RDF2Subdue {
         cell = new Cell();
         cell.setKey(key);
         try {
-            cell.setValue(String.format("<%s>", object).getBytes("UTF-8"));
+            cell.setValue(String.format("<%s>", label).getBytes("UTF-8"));
         } catch (UnsupportedEncodingException e) {
             e.printStackTrace();
         }
@@ -485,14 +511,12 @@ public class RDF2Subdue {
         cell = new Cell();
         cell.setKey(key);
         try {
-            cell.setValue(subject.getBytes("UTF-8"));
+            cell.setValue(source.getBytes("UTF-8"));
         } catch (UnsupportedEncodingException e) {
             e.printStackTrace();
         }
         cells.add(cell);
 
-        client.set_cells(ns, dataset.replace("-", "_"), cells);
-        cells = new ArrayList();
         return cells;
     }
 }
