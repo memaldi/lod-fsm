@@ -35,7 +35,7 @@ public class RDF2Subdue {
         if (!cont) {
             generateId(dataset);
         }
-        //writeFile(dataset, outputDir);
+        writeFile(dataset, outputDir);
     }
 
     private static void writeFile(String dataset, String outputDir) {
@@ -222,8 +222,6 @@ public class RDF2Subdue {
 
         createTable(schema, client , ns, dataset);
 
-
-
         VirtGraph graph = new VirtGraph("http://" + dataset, connectionURL.toString(), prop.getProperty("virtuoso_user"), prop.getProperty("virtuoso_password"));
 
         logger.info("Generating vertices...");
@@ -292,19 +290,20 @@ public class RDF2Subdue {
                     if (next.get("o").isLiteral()) {
                         String object = next.getLiteral("o").getString();
                         cellList.addAll(insertVertex(id, object, "LITERAL"));
-                        String targetID = String.valueOf(id);
+                        String targetID = getPaddedID(id);
                         id++;
                         flush++;
                         targetIDList.add(targetID);
                     } else if (next.get("o").isURIResource()) {
                         String object = next.getResource("o").getURI();
-                        String hqlQuery = String.format("SELECT id FROM %s WHERE source = '%s' KEYS_ONLY", dataset, object);
+                        String hqlQuery = String.format("SELECT type FROM %s WHERE source = '%s' KEYS_ONLY", dataset, object);
                         try {
                             HqlResult hqlResult = client.hql_query(ns, hqlQuery);
                             if (hqlResult.getCells().size() > 0) {
                                 for (Cell cell : hqlResult.getCells()) {
-                                    ByteBuffer labelBuffer = client.get_cell(ns, dataset.replace("-", "_"), cell.getKey().getRow(), "id");
-                                    String targetID = new String(labelBuffer.array(), labelBuffer.position(), labelBuffer.remaining());
+                                    //ByteBuffer labelBuffer = client.get_cell(ns, dataset.replace("-", "_"), cell.getKey().getRow(), "id");
+                                    //String targetID = new String(labelBuffer.array(), labelBuffer.position(), labelBuffer.remaining());
+                                    String targetID = cell.getKey().getRow();
                                     targetIDList.add(targetID);
                                 }
                             }
@@ -315,13 +314,14 @@ public class RDF2Subdue {
                 }
 
                 if (targetIDList.size() > 0) {
-                    String hqlQuery = String.format("SELECT id FROM %s WHERE source = '%s' KEYS_ONLY", dataset, subject);
+                    String hqlQuery = String.format("SELECT type FROM %s WHERE source = '%s' KEYS_ONLY", dataset, subject);
                     try {
                         HqlResult hqlResult = client.hql_query(ns, hqlQuery);
                         if (hqlResult.getCells().size() > 0) {
                             for (Cell cell : hqlResult.getCells()) {
-                                ByteBuffer labelBuffer = client.get_cell(ns, dataset.replace("-", "_"), cell.getKey().getRow(), "id");
-                                String sourceID = new String(labelBuffer.array(), labelBuffer.position(), labelBuffer.remaining());
+                                //ByteBuffer labelBuffer = client.get_cell(ns, dataset.replace("-", "_"), cell.getKey().getRow(), "id");
+                                //String sourceID = new String(labelBuffer.array(), labelBuffer.position(), labelBuffer.remaining());
+                                String sourceID = cell.getKey().getRow();
                                 for (String targetID : targetIDList) {
                                     cellList.addAll(insertEdge(predicate, sourceID, targetID));
                                 }
@@ -358,12 +358,21 @@ public class RDF2Subdue {
         logger.info("end");
     }
 
+    private static String getPaddedID(long id) {
+        String paddedZeros = "";
+        for (int i = 0; i <= 10-String.valueOf(id).length(); i++) {
+            paddedZeros += "0";
+        }
+
+        return paddedZeros + String.valueOf(id);
+    }
+
     private static void createTable(Schema schema, ThriftClient client, long ns, String dataset) {
         Map columnFamilies = new HashMap();
         ColumnFamilySpec cf = new ColumnFamilySpec();
-        cf.setName("id");
+        /*cf.setName("id");
         cf.setValue_index(true);
-        columnFamilies.put("id", cf);
+        columnFamilies.put("id", cf);*/
 
         cf = new ColumnFamilySpec();
         cf.setName("label");
@@ -465,9 +474,9 @@ public class RDF2Subdue {
         List<Cell> cells = new ArrayList<>();
 
 
-        String keyId = UUID.randomUUID().toString();
+        //String keyId = UUID.randomUUID().toString();
 
-        key = new Key();
+        /*key = new Key();
         key.setRow(keyId);
         key.setColumn_family("id");
         cell = new Cell();
@@ -479,7 +488,9 @@ public class RDF2Subdue {
             e.printStackTrace();
         }
 
-        cells.add(cell);
+        cells.add(cell);*/
+
+        String keyId = getPaddedID(id);
 
         key = new Key();
         key.setRow(keyId);
