@@ -62,7 +62,6 @@ public class RDF2Subdue {
         new File(dir).mkdir();
 
         boolean end = false;
-        int limit = 1000;
         long lowerLimit = 1;
         long upperLimit = 1000;
         int count = 1;
@@ -71,7 +70,6 @@ public class RDF2Subdue {
         while (!end) {
             File f = new File(String.format("%s/%s_%s.g", dir, dataset, count));
             if (!f.exists()) {
-
 
 
                 String query = String.format("SELECT type FROM %s WHERE '%s' <= ROW < '%s' AND type = 'vertex' KEYS_ONLY", dataset, getPaddedID(lowerLimit), getPaddedID(upperLimit));
@@ -93,10 +91,30 @@ public class RDF2Subdue {
                             String label = new String(labelBuffer.array(), labelBuffer.position(), labelBuffer.remaining());
                             bw.write(String.format("v %s %s\n", getDepaddedId(cell.getKey().getRow()), label));
                         }
+                        query = String.format("SELECT type FROM %s WHERE type = 'edge'", dataset);
+
+                        HqlResult edgeHqlResult = client.hql_query(ns, query);
+
+                        if (edgeHqlResult.getCells().size() > 0) {
+                            for (Cell cell: edgeHqlResult.getCells()) {
+                                ByteBuffer sourceBuffer = client.get_cell(ns, dataset.replace("-", "_"), cell.getKey().getRow(), "source");
+                                long source = Long.parseLong(getDepaddedId(new String(sourceBuffer.array(), sourceBuffer.position(), sourceBuffer.remaining())));
+                                ByteBuffer targetBuffer = client.get_cell(ns, dataset.replace("-", "_"), cell.getKey().getRow(), "target");
+                                long target = Long.parseLong(getDepaddedId(new String(targetBuffer.array(), targetBuffer.position(), targetBuffer.remaining())));
+
+                                if ((source < upperLimit && target < upperLimit) && (source >= lowerLimit || target >= lowerLimit)) {
+                                    ByteBuffer labelBuffer = client.get_cell(ns, dataset.replace("-", "_"), cell.getKey().getRow(), "label");
+                                    String label = new String(labelBuffer.array(), labelBuffer.position(), labelBuffer.remaining());
+                                    bw.write(String.format("d %s %s %s\n", source, target, label));
+                                }
+                            }
+                        }
+
                         bw.close();
                     } else {
                         end = true;
                     }
+
                 } catch (TException e) {
                     e.printStackTrace();
                 } catch (IOException e) {
@@ -105,13 +123,12 @@ public class RDF2Subdue {
             } else {
                 logger.info(String.format("Skipping %s_%s.g", dataset, count));
             }
-            lowerLimit += limit;
-            upperLimit += limit;
+            lowerLimit = upperLimit;
+            upperLimit += LIMIT;
             count++;
         }
 
         logger.info("End!");
-
 
     }
 
