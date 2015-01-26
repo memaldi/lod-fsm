@@ -31,9 +31,9 @@ public class RDF2Subdue {
     private static int LIMIT = 1000;
     private static int FLUSH_LIMIT = 200000;
 
-    public static void run(String dataset, String outputDir, boolean cont) {
+    public static void run(String dataset, String outputDir, boolean cont, boolean literals) {
         if (!cont) {
-            generateId(dataset);
+            generateId(dataset, literals);
         }
         writeFile(dataset, outputDir);
     }
@@ -136,7 +136,7 @@ public class RDF2Subdue {
         return id.replaceFirst("^0+(?!$)", "");
     }
 
-    private static void generateId(String dataset) {
+    private static void generateId(String dataset, boolean literals) {
         Logger logger = Logger.getLogger(RDF2Subdue.class.getName());
         logger.info("Initializing...");
         Properties prop = new Properties();
@@ -184,6 +184,7 @@ public class RDF2Subdue {
 
         logger.info("Generating vertices...");
 
+        long literalHash = 0;
         long id = 1;
         long offset = 0;
         int flush = 0;
@@ -247,7 +248,12 @@ public class RDF2Subdue {
 
                     if (next.get("o").isLiteral()) {
                         String object = next.getLiteral("o").getString();
-                        cellList.addAll(insertVertex(id, object, "LITERAL"));
+                        if (literals) {
+                            cellList.addAll(insertVertex(id, object, String.valueOf(literalHash)));
+                            literalHash++;
+                        } else {
+                            cellList.addAll(insertVertex(id, object, "LITERAL"));
+                        }
                         String targetID = getPaddedID(id);
                         id++;
                         flush++;

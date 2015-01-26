@@ -33,7 +33,7 @@ public class Main {
                     System.out.println("Invalid number of parameters!");
                     exit(1);
                 }
-                RDF2Subdue.run(args[1], args[2], Boolean.parseBoolean(args[3]));
+                RDF2Subdue.run(args[1], args[2], Boolean.parseBoolean(args[3]), Boolean.parseBoolean(args[4]));
                 break;
             case "loadsubgraphs":
                 if (args.length < 2) {
