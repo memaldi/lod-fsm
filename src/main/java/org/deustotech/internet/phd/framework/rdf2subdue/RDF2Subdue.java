@@ -29,7 +29,7 @@ public class RDF2Subdue {
 
 
     private static int LIMIT = 1000;
-    private static int FLUSH_LIMIT = 200000;
+    private static int FLUSH_LIMIT = 20000;
 
     public static void run(String dataset, String outputDir, boolean cont, boolean literals) {
         if (!cont) {
@@ -212,6 +212,7 @@ public class RDF2Subdue {
                     client.set_cells(ns, dataset.replace("-", "_"), cellList);
                     cellList = new ArrayList();
                     flush = 0;
+                    System.gc();
                 } catch (TException e) {
                     e.printStackTrace();
                 }
@@ -234,6 +235,7 @@ public class RDF2Subdue {
         offset = 0;
         flush = 0;
         cellList = new ArrayList<>();
+        System.gc();
         while(true) {
             Query sparqlQuery = QueryFactory.create(String.format("SELECT ?s ?p ?o WHERE { ?s a ?class . ?s ?p ?o . } OFFSET %s LIMIT %s", offset, LIMIT));
             VirtuosoQueryExecution vqe = VirtuosoQueryExecutionFactory.create(sparqlQuery, graph);
@@ -300,6 +302,7 @@ public class RDF2Subdue {
                 try {
                     client.set_cells(ns, dataset.replace("-", "_"), cellList);
                     cellList = new ArrayList();
+                    System.gc();
                     flush = 0;
                 } catch (TException e) {
                     e.printStackTrace();
@@ -314,8 +317,7 @@ public class RDF2Subdue {
 
         try {
             client.set_cells(ns, dataset.replace("-", "_"), cellList);
-            cellList = new ArrayList();
-            flush = 0;
+            System.gc();
         } catch (TException e) {
             e.printStackTrace();
         }
