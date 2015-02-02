@@ -90,7 +90,7 @@ public class RDF2Subdue {
                             String label = new String(labelBuffer.array(), labelBuffer.position(), labelBuffer.remaining());
                             bw.write(String.format("v %s %s\n", getDepaddedId(cell.getKey().getRow()), label));
                         }
-
+                        bw.flush();
                         ScanSpec ss = new ScanSpec();
                         List columns = new ArrayList();
                         columns.add("type");
@@ -116,6 +116,7 @@ public class RDF2Subdue {
                                         ByteBuffer labelBuffer = client.get_cell(ns, dataset.replace("-", "_"), cell.getKey().getRow(), "label");
                                         String label = new String(labelBuffer.array(), labelBuffer.position(), labelBuffer.remaining());
                                         bw.write(String.format("d %s %s %s\n", source, target, label));
+                                        bw.flush();
                                     }
                                 }
                             }
