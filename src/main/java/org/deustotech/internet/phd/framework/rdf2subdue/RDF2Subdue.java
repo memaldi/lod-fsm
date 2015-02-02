@@ -30,6 +30,7 @@ public class RDF2Subdue {
 
     private static int LIMIT = 1000;
     private static int FLUSH_LIMIT = 20000;
+    private static String THRIFT_SERVER = "localhost";
 
     public static void run(String dataset, String outputDir, boolean cont, boolean literals) {
         if (!cont) {
@@ -44,7 +45,7 @@ public class RDF2Subdue {
         ThriftClient client = null;
 
         try {
-            client = ThriftClient.create("localhost", 15867);
+            client = ThriftClient.create(THRIFT_SERVER, 15867);
         } catch (TException e) {
             System.out.println(e);
             System.exit(1);
@@ -91,7 +92,7 @@ public class RDF2Subdue {
                             String label = new String(labelBuffer.array(), labelBuffer.position(), labelBuffer.remaining());
                             bw.write(String.format("v %s %s\n", getDepaddedId(cell.getKey().getRow()), label));
                         }
-                        query = String.format("SELECT type FROM %s WHERE type = 'edge'", dataset);
+                        query = String.format("SELECT type FROM %s WHERE type = 'edge' KEYS_ONLY", dataset);
 
                         HqlResult edgeHqlResult = client.hql_query(ns, query);
 
@@ -160,9 +161,9 @@ public class RDF2Subdue {
         ThriftClient client = null;
 
         try {
-            client = ThriftClient.create("localhost", 15867);
+            client = ThriftClient.create(THRIFT_SERVER, 15867);
         } catch (TException e) {
-            System.out.println(e);
+            e.printStackTrace();
             System.exit(1);
         }
 
@@ -262,7 +263,7 @@ public class RDF2Subdue {
                         targetIDList.add(targetID);
                     } else if (next.get("o").isURIResource()) {
                         String object = next.getResource("o").getURI();
-                        String hqlQuery = String.format("SELECT type FROM %s WHERE source = '%s' KEYS_ONLY", dataset, object);
+                        String hqlQuery = String.format("SELECT type FROM %s WHERE source = \"%s\" KEYS_ONLY", dataset, object);
                         try {
                             HqlResult hqlResult = client.hql_query(ns, hqlQuery);
                             if (hqlResult.getCells().size() > 0) {
@@ -280,7 +281,7 @@ public class RDF2Subdue {
                 }
 
                 if (targetIDList.size() > 0) {
-                    String hqlQuery = String.format("SELECT type FROM %s WHERE source = '%s' KEYS_ONLY", dataset, subject);
+                    String hqlQuery = String.format("SELECT type FROM %s WHERE source = \"%s\" KEYS_ONLY", dataset, subject);
                     try {
                         HqlResult hqlResult = client.hql_query(ns, hqlQuery);
                         if (hqlResult.getCells().size() > 0) {
@@ -438,23 +439,6 @@ public class RDF2Subdue {
         Key key = null;
         Cell cell = null;
         List<Cell> cells = new ArrayList<>();
-
-
-        //String keyId = UUID.randomUUID().toString();
-
-        /*key = new Key();
-        key.setRow(keyId);
-        key.setColumn_family("id");
-        cell = new Cell();
-        cell.setKey(key);
-
-        try {
-            cell.setValue(String.valueOf(id).getBytes("UTF-8"));
-        } catch (UnsupportedEncodingException e) {
-            e.printStackTrace();
-        }
-
-        cells.add(cell);*/
 
         String keyId = getPaddedID(id);
 
