@@ -5,12 +5,10 @@ import com.hp.hpl.jena.query.QueryFactory;
 import com.hp.hpl.jena.query.QuerySolution;
 import com.hp.hpl.jena.query.ResultSet;
 import com.hp.hpl.jena.vocabulary.RDF;
-import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.http.client.utils.URIBuilder;
 import org.apache.thrift.TException;
 import org.hypertable.thrift.ThriftClient;
 import org.hypertable.thriftgen.*;
-import redis.clients.jedis.Jedis;
 import virtuoso.jena.driver.VirtGraph;
 import virtuoso.jena.driver.VirtuosoQueryExecution;
 import virtuoso.jena.driver.VirtuosoQueryExecutionFactory;
@@ -30,7 +28,7 @@ public class RDF2Subdue {
 
     private static int LIMIT = 1000;
     private static int FLUSH_LIMIT = 20000;
-    private static String THRIFT_SERVER = "localhost";
+    private static String THRIFT_SERVER = "helheim.deusto.es";
 
     public static void run(String dataset, String outputDir, boolean cont, boolean literals) {
         if (!cont) {
@@ -45,7 +43,7 @@ public class RDF2Subdue {
         ThriftClient client = null;
 
         try {
-            client = ThriftClient.create(THRIFT_SERVER, 15867);
+            client = ThriftClient.create(THRIFT_SERVER, 15867, 1600000, true, 400 * 1024 * 1024);
         } catch (TException e) {
             System.out.println(e);
             System.exit(1);
@@ -92,12 +90,43 @@ public class RDF2Subdue {
                             String label = new String(labelBuffer.array(), labelBuffer.position(), labelBuffer.remaining());
                             bw.write(String.format("v %s %s\n", getDepaddedId(cell.getKey().getRow()), label));
                         }
-                        query = String.format("SELECT type FROM %s WHERE type = 'edge' KEYS_ONLY", dataset);
 
-                        HqlResult edgeHqlResult = client.hql_query(ns, query);
+                        ScanSpec ss = new ScanSpec();
+                        List columns = new ArrayList();
+                        columns.add("type");
+                        ss.setColumns(columns);
 
-                        if (edgeHqlResult.getCells().size() > 0) {
-                            for (Cell cell: edgeHqlResult.getCells()) {
+                        List cells = client.get_cells(ns, dataset.replace("-", "_"), ss);
+
+
+                        for (Object item :  cells) {
+                            Cell cell = (Cell) item;
+                            if (cell != null) {
+                                ByteBuffer typeBuffer = client.get_cell(ns, dataset.replace("-", "_"), cell.getKey().getRow(), "source");
+                                String type = new String(typeBuffer.array(), typeBuffer.position(), typeBuffer.remaining());
+
+                                if (type.equals("edge")) {
+
+                                    ByteBuffer sourceBuffer = client.get_cell(ns, dataset.replace("-", "_"), cell.getKey().getRow(), "source");
+                                    long source = Long.parseLong(getDepaddedId(new String(sourceBuffer.array(), sourceBuffer.position(), sourceBuffer.remaining())));
+                                    ByteBuffer targetBuffer = client.get_cell(ns, dataset.replace("-", "_"), cell.getKey().getRow(), "target");
+                                    long target = Long.parseLong(getDepaddedId(new String(targetBuffer.array(), targetBuffer.position(), targetBuffer.remaining())));
+
+                                    if ((source < upperLimit && target < upperLimit) && (source >= lowerLimit || target >= lowerLimit)) {
+                                        ByteBuffer labelBuffer = client.get_cell(ns, dataset.replace("-", "_"), cell.getKey().getRow(), "label");
+                                        String label = new String(labelBuffer.array(), labelBuffer.position(), labelBuffer.remaining());
+                                        bw.write(String.format("d %s %s %s\n", source, target, label));
+                                    }
+                                }
+                            }
+                        }
+                        /*query = String.format("SELECT type FROM %s WHERE type = 'edge' KEYS_ONLY", dataset);
+
+                        HqlResult edgeHqlResult = client.hql_exec(ns, query, false, true);
+                        List cells = client.scanner_get_cells(edgeHqlResult.scanner);
+                        if (cells.size() > 0) {
+                            for (Object cell: cells) {
+                                System.out.println(cell.getClass().getCanonicalName());
                                 ByteBuffer sourceBuffer = client.get_cell(ns, dataset.replace("-", "_"), cell.getKey().getRow(), "source");
                                 long source = Long.parseLong(getDepaddedId(new String(sourceBuffer.array(), sourceBuffer.position(), sourceBuffer.remaining())));
                                 ByteBuffer targetBuffer = client.get_cell(ns, dataset.replace("-", "_"), cell.getKey().getRow(), "target");
@@ -109,7 +138,7 @@ public class RDF2Subdue {
                                     bw.write(String.format("d %s %s %s\n", source, target, label));
                                 }
                             }
-                        }
+                        }*/
 
                         bw.close();
                     } else {
