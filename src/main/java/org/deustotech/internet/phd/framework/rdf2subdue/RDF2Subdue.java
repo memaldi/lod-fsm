@@ -91,43 +91,12 @@ public class RDF2Subdue {
                             bw.write(String.format("v %s %s\n", getDepaddedId(cell.getKey().getRow()), label));
                         }
                         bw.flush();
-                        ScanSpec ss = new ScanSpec();
-                        List columns = new ArrayList();
-                        columns.add("type");
-                        ss.setColumns(columns);
 
-                        List cells = client.get_cells(ns, dataset.replace("-", "_"), ss);
+                        query = String.format("SELECT type FROM %s WHERE type = 'edge' and ROW < '%s'  KEYS_ONLY", dataset, upperLimit);
 
-
-                        for (Object item :  cells) {
-                            Cell cell = (Cell) item;
-                            if (cell != null) {
-                                ByteBuffer typeBuffer = client.get_cell(ns, dataset.replace("-", "_"), cell.getKey().getRow(), "source");
-                                String type = new String(typeBuffer.array(), typeBuffer.position(), typeBuffer.remaining());
-
-                                if (type.equals("edge")) {
-
-                                    ByteBuffer sourceBuffer = client.get_cell(ns, dataset.replace("-", "_"), cell.getKey().getRow(), "source");
-                                    long source = Long.parseLong(getDepaddedId(new String(sourceBuffer.array(), sourceBuffer.position(), sourceBuffer.remaining())));
-                                    ByteBuffer targetBuffer = client.get_cell(ns, dataset.replace("-", "_"), cell.getKey().getRow(), "target");
-                                    long target = Long.parseLong(getDepaddedId(new String(targetBuffer.array(), targetBuffer.position(), targetBuffer.remaining())));
-
-                                    if ((source < upperLimit && target < upperLimit) && (source >= lowerLimit || target >= lowerLimit)) {
-                                        ByteBuffer labelBuffer = client.get_cell(ns, dataset.replace("-", "_"), cell.getKey().getRow(), "label");
-                                        String label = new String(labelBuffer.array(), labelBuffer.position(), labelBuffer.remaining());
-                                        bw.write(String.format("d %s %s %s\n", source, target, label));
-                                        bw.flush();
-                                    }
-                                }
-                            }
-                        }
-                        /*query = String.format("SELECT type FROM %s WHERE type = 'edge' KEYS_ONLY", dataset);
-
-                        HqlResult edgeHqlResult = client.hql_exec(ns, query, false, true);
-                        List cells = client.scanner_get_cells(edgeHqlResult.scanner);
-                        if (cells.size() > 0) {
-                            for (Object cell: cells) {
-                                System.out.println(cell.getClass().getCanonicalName());
+                        HqlResult edgeHqlResult = client.hql_query(ns, query);
+                        if (edgeHqlResult.getCells().size() > 0) {
+                            for (Cell cell : edgeHqlResult.getCells()) {
                                 ByteBuffer sourceBuffer = client.get_cell(ns, dataset.replace("-", "_"), cell.getKey().getRow(), "source");
                                 long source = Long.parseLong(getDepaddedId(new String(sourceBuffer.array(), sourceBuffer.position(), sourceBuffer.remaining())));
                                 ByteBuffer targetBuffer = client.get_cell(ns, dataset.replace("-", "_"), cell.getKey().getRow(), "target");
@@ -137,9 +106,10 @@ public class RDF2Subdue {
                                     ByteBuffer labelBuffer = client.get_cell(ns, dataset.replace("-", "_"), cell.getKey().getRow(), "label");
                                     String label = new String(labelBuffer.array(), labelBuffer.position(), labelBuffer.remaining());
                                     bw.write(String.format("d %s %s %s\n", source, target, label));
+                                    bw.flush();
                                 }
                             }
-                        }*/
+                        }
 
                         bw.close();
                     } else {
@@ -399,13 +369,15 @@ public class RDF2Subdue {
         }
     }
 
+
+
     private static List<Cell> insertEdge(String predicate, String source, String target) {
         Key key = null;
         Cell cell = null;
 
         List<Cell> cells = new ArrayList<>();
 
-        String keyId = UUID.randomUUID().toString();
+        String keyId = getPaddedEdge(source, target, predicate);
 
         key = new Key();
         key.setRow(keyId);
@@ -463,6 +435,24 @@ public class RDF2Subdue {
 
         cells.add(cell);
         return cells;
+    }
+
+    private static String getPaddedEdge(String source, String target, String label) {
+
+        long max = Math.max(Long.parseLong(source), Long.parseLong(target));
+        long min = Math.min(Long.parseLong(source), Long.parseLong(target));
+
+        String paddedMax = "";
+        for (int i = 0; i <= 10 - String.valueOf(max).length() - 1; i++) {
+            paddedMax += "0";
+        }
+
+        String paddedMin = "";
+        for (int i = 0; i <= 10 - String.valueOf(min).length() - 1; i++) {
+            paddedMin += "0";
+        }
+
+        return String.format("%s-%s-%s", paddedMax, paddedMin, label);
     }
 
     private static List<Cell> insertVertex(long id, String source, String label) {
