@@ -446,12 +446,13 @@ public class RDF2Subdue {
         for (int i = 0; i <= 10 - String.valueOf(max).length() - 1; i++) {
             paddedMax += "0";
         }
+        paddedMax += String.valueOf(max);
 
         String paddedMin = "";
         for (int i = 0; i <= 10 - String.valueOf(min).length() - 1; i++) {
             paddedMin += "0";
         }
-
+        paddedMin += String.valueOf(min);
         return String.format("%s-%s-%s", paddedMax, paddedMin, label);
     }
 
