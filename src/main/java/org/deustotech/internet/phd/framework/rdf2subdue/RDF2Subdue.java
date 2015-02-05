@@ -92,21 +92,24 @@ public class RDF2Subdue {
                         }
                         bw.flush();
 
-                        query = String.format("SELECT type FROM %s WHERE type = 'edge' and ROW < '%s'  KEYS_ONLY", dataset, upperLimit);
+                        query = String.format("SELECT type FROM %s WHERE type = 'edge' and source =^ '%s' or target =^ '%s' KEYS_ONLY", dataset, paddedLimit(upperLimit), paddedLimit(upperLimit));
 
                         HqlResult edgeHqlResult = client.hql_query(ns, query);
                         if (edgeHqlResult.getCells().size() > 0) {
+                            Set<String> rowSet = new HashSet<>();
                             for (Cell cell : edgeHqlResult.getCells()) {
-                                ByteBuffer sourceBuffer = client.get_cell(ns, dataset.replace("-", "_"), cell.getKey().getRow(), "source");
+                                rowSet.add(cell.getKey().getRow());
+                            }
+                            for (String row : rowSet) {
+                                ByteBuffer sourceBuffer = client.get_cell(ns, dataset.replace("-", "_"), row, "source");
                                 long source = Long.parseLong(getDepaddedId(new String(sourceBuffer.array(), sourceBuffer.position(), sourceBuffer.remaining())));
-                                ByteBuffer targetBuffer = client.get_cell(ns, dataset.replace("-", "_"), cell.getKey().getRow(), "target");
+                                ByteBuffer targetBuffer = client.get_cell(ns, dataset.replace("-", "_"), row, "target");
                                 long target = Long.parseLong(getDepaddedId(new String(targetBuffer.array(), targetBuffer.position(), targetBuffer.remaining())));
 
                                 if ((source < upperLimit && target < upperLimit) && (source >= lowerLimit || target >= lowerLimit)) {
-                                    ByteBuffer labelBuffer = client.get_cell(ns, dataset.replace("-", "_"), cell.getKey().getRow(), "label");
+                                    ByteBuffer labelBuffer = client.get_cell(ns, dataset.replace("-", "_"), row, "label");
                                     String label = new String(labelBuffer.array(), labelBuffer.position(), labelBuffer.remaining());
                                     bw.write(String.format("d %s %s %s\n", source, target, label));
-                                    bw.flush();
                                 }
                             }
                         }
@@ -131,6 +134,18 @@ public class RDF2Subdue {
 
         logger.info("End!");
 
+    }
+
+    private static String paddedLimit(long limit) {
+        String origStrLimit = String.valueOf(limit);
+        String strLimit = String.valueOf(Integer.valueOf(String.valueOf(origStrLimit.charAt(0))) - 1);
+
+        String paddedZeros = "";
+        for (int i = 0; i <= 10-String.valueOf(origStrLimit).length(); i++) {
+            paddedZeros += "0";
+        }
+
+        return paddedZeros + strLimit;
     }
 
     private static String getDepaddedId(String id) {
@@ -238,7 +253,7 @@ public class RDF2Subdue {
         cellList = new ArrayList<>();
         System.gc();
         while(true) {
-            Query sparqlQuery = QueryFactory.create(String.format("SELECT ?s ?p ?o WHERE { ?s a ?class . ?s ?p ?o . } OFFSET %s LIMIT %s", offset, LIMIT));
+            Query sparqlQuery = QueryFactory.create(String.format("SELECT DISTINCT ?s ?p ?o WHERE { ?s a ?class . ?s ?p ?o . } OFFSET %s LIMIT %s", offset, LIMIT));
             VirtuosoQueryExecution vqe = VirtuosoQueryExecutionFactory.create(sparqlQuery, graph);
             ResultSet results = vqe.execSelect();
 
@@ -377,7 +392,8 @@ public class RDF2Subdue {
 
         List<Cell> cells = new ArrayList<>();
 
-        String keyId = getPaddedEdge(source, target, predicate);
+        //String keyId = getPaddedEdge(source, target, predicate);
+        String keyId = UUID.randomUUID().toString();
 
         key = new Key();
         key.setRow(keyId);
