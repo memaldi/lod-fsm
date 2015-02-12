@@ -41,7 +41,7 @@ public class MatchSubgraphs {
 
         ThriftClient client = null;
         try {
-            client = ThriftClient.create("localhost", 15867);
+            client = ThriftClient.create("helheim.deusto.es", 15867);
         } catch (TException e) {
             e.printStackTrace();
             System.exit(1);
@@ -272,7 +272,7 @@ public class MatchSubgraphs {
                                     }
                                 }
                                 if (similarity == null) {
-                                    query = String.format("SELECT * FROM similarity WHERE source = '%s' and target = '%s' and distanceType = '%s' and threshold = '%s'", target, source, distanceType, sim);
+                                    query = String.format("SELECT val FROM similarity WHERE source = '%s' and target = '%s' and distanceType = '%s' and threshold = '%s'", target, source, distanceType, sim);
                                     hqlResult = client.hql_query(ns, query);
                                     if (hqlResult.getCells().size() > 0) {
                                         for (Cell cell : hqlResult.getCells()) {
@@ -281,6 +281,9 @@ public class MatchSubgraphs {
                                             similarity = Double.valueOf(stringValue);
                                             break;
                                         }
+                                    }
+                                    else {
+                                        System.out.println(query);
                                     }
                                 }
                                 String status = "";
@@ -466,8 +469,9 @@ public class MatchSubgraphs {
 
         ThriftClient client = null;
         try {
-            client = ThriftClient.create("localhost", 15867);
+            client = ThriftClient.create("helheim.deusto.es", 15867);
         } catch (TException e) {
+            e.printStackTrace();
             System.exit(1);
         }
 
