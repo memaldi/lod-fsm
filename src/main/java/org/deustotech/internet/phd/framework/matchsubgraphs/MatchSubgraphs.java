@@ -41,7 +41,7 @@ public class MatchSubgraphs {
 
         ThriftClient client = null;
         try {
-            client = ThriftClient.create("helheim.deusto.es", 15867);
+            client = ThriftClient.create("localhost", 15867);
         } catch (TException e) {
             e.printStackTrace();
             System.exit(1);
@@ -232,8 +232,7 @@ public class MatchSubgraphs {
                     }
                 }
 
-                for (int k = 0; k < 10; k += 1) {
-                    double i = Double.parseDouble(range[k]);
+                for (int k = 0; k < 10; k += 1) {double i = Double.parseDouble(range[k]);
                     graphPermutations = Itertools.combinations(Itertools.iter(graphSet.iterator()), 2);
                     end = false;
                     int tp = 0;
@@ -469,7 +468,7 @@ public class MatchSubgraphs {
 
         ThriftClient client = null;
         try {
-            client = ThriftClient.create("helheim.deusto.es", 15867);
+            client = ThriftClient.create("localhost", 15867);
         } catch (TException e) {
             e.printStackTrace();
             System.exit(1);
