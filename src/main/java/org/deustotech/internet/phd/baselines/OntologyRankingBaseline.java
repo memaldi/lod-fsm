@@ -57,7 +57,7 @@ public class OntologyRankingBaseline {
 
         ThriftClient client = null;
         try {
-            client = ThriftClient.create("localhost", 15867);
+            client = ThriftClient.create("helheim", 15867);
         } catch (TException e) {
             e.printStackTrace();
             System.exit(1);
@@ -224,6 +224,16 @@ public class OntologyRankingBaseline {
 
         Map<String, List<String>> goldStandard = MatchSubgraphs.loadGoldStandard(true);
 
+        File file = new File("ontologyRankingBaseline.csv");
+        BufferedWriter bw = null;
+        try {
+            bw = new BufferedWriter(new FileWriter(file));
+            String line = "Similarity Threshold;Precision;Recall;F1;Accuracy\n";
+            bw.write(line);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
         for (int j = 0; j < 10; j += 1 ) {
             int tp = 0;
             int fp = 0;
@@ -283,6 +293,13 @@ public class OntologyRankingBaseline {
             System.out.println(String.format("Recall: %s", recall));
             System.out.println(String.format("F1: %s", f1));
             System.out.println(String.format("Accuracy: %s", accuracy));
+
+            String line = String.format("%s;%s;%s;%s;%s\n", j, precision, recall, f1, accuracy);
+            try {
+                bw.write(line);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
 
     }
