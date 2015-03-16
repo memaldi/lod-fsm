@@ -294,7 +294,7 @@ public class OntologyRankingBaseline {
             System.out.println(String.format("F1: %s", f1));
             System.out.println(String.format("Accuracy: %s", accuracy));
 
-            String line = String.format("%s;%s;%s;%s;%s\n", j, precision, recall, f1, accuracy);
+            String line = String.format("%s;%s;%s;%s;%s\n", threshold, precision, recall, f1, accuracy);
             try {
                 bw.write(line);
             } catch (IOException e) {
