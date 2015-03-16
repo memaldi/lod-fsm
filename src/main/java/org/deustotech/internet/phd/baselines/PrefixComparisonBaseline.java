@@ -225,6 +225,16 @@ public class PrefixComparisonBaseline {
 
         Map<String, List<String>> goldStandard = MatchSubgraphs.loadGoldStandard(true);
 
+        File file = new File("prefixcomparisonbaseline.csv");
+        BufferedWriter bw = null;
+        try {
+            bw = new BufferedWriter(new FileWriter(file));
+            String line = "Similarity Threshold;Precision;Recall;F1;Accuracy\n";
+            bw.write(line);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
         for (int i = 0; i < 10; i++) {
             int fp = 0;
             int fn = 0;
@@ -266,6 +276,13 @@ public class PrefixComparisonBaseline {
             System.out.println(String.format("Recall: %s", recall));
             System.out.println(String.format("F1: %s", f1));
             System.out.println(String.format("Accuracy: %s", accuracy));
+
+            String line = String.format("%s;%s;%s;%s;%s\n", i, precision, recall, f1, accuracy);
+            try {
+                bw.write(line);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
 
 
