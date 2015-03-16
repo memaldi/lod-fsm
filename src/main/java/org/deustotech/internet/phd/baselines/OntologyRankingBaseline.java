@@ -57,7 +57,7 @@ public class OntologyRankingBaseline {
 
         ThriftClient client = null;
         try {
-            client = ThriftClient.create("helheim", 15867);
+            client = ThriftClient.create("localhost", 15867);
         } catch (TException e) {
             e.printStackTrace();
             System.exit(1);
@@ -302,6 +302,11 @@ public class OntologyRankingBaseline {
             }
         }
 
+        try {
+            bw.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     private static String getPrefix(String uri) {

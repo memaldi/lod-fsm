@@ -284,7 +284,10 @@ public class PrefixComparisonBaseline {
                 e.printStackTrace();
             }
         }
-
-
+        try {
+            bw.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 }
