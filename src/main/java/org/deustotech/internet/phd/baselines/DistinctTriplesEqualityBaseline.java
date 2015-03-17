@@ -197,6 +197,16 @@ public class DistinctTriplesEqualityBaseline {
 
         Map<String, List<String>> goldStandard = MatchSubgraphs.loadGoldStandard(true);
 
+        File file = new File("tripleequality.csv");
+        BufferedWriter bw = null;
+        try {
+            bw = new BufferedWriter(new FileWriter(file));
+            String line = "Similarity Threshold;Precision;Recall;F1;Accuracy\n";
+            bw.write(line);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
         //Evaluation
         for (int i = 0; i < 10; i++) {
             int fp = 0;
@@ -251,6 +261,12 @@ public class DistinctTriplesEqualityBaseline {
             System.out.println(String.format("F1: %s", f1));
             System.out.println(String.format("Accuracy: %s", accuracy));
 
+        }
+
+        try {
+            bw.close();
+        } catch (IOException e) {
+            e.printStackTrace();
         }
 
         logger.info("End!");
