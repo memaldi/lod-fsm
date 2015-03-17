@@ -31,13 +31,13 @@ public class DistinctTriplesEqualityBaseline {
 
     private static String [] range = new String[] {"0.0", "0.1", "0.2", "0.3", "0.4", "0.5", "0.6", "0.7", "0.8", "0.9"};
 
-    public void run() {
-        Logger logger = Logger.getLogger(this.getClass().getName());
+    public static void run() {
+        Logger logger = Logger.getLogger(DistinctTriplesEqualityBaseline.class.getName());
         logger.info("Initializing...");
         Properties prop = new Properties();
         InputStream input;
         try {
-            input = getClass().getResourceAsStream("/config.properties");
+            input = DistinctTriplesEqualityBaseline.class.getResourceAsStream("/config.properties");
             prop.load(input);
             input.close();
         } catch (IOException e) {

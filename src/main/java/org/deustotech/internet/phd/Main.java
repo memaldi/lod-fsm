@@ -1,5 +1,6 @@
 package org.deustotech.internet.phd;
 
+import org.deustotech.internet.phd.baselines.DistinctTriplesEqualityBaseline;
 import org.deustotech.internet.phd.baselines.OntologyRankingBaseline;
 import org.deustotech.internet.phd.baselines.PrefixComparisonBaseline;
 import org.deustotech.internet.phd.framework.generatealignments.GenerateAlignments;
@@ -66,6 +67,9 @@ public class Main {
                 break;
             case "ontologyrankingbaseline":
                 OntologyRankingBaseline.run();
+            case "distincttriplesequalitybaseline":
+                DistinctTriplesEqualityBaseline.run();
+
         }
     }
 }
