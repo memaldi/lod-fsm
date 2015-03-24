@@ -118,6 +118,7 @@ public class DistinctTriplesEqualityBaseline {
                             if (!ask) {
                                 datasetSet.add(dataset);
                             }
+                            vqePredicate.close();
                             targetGraph.close();
                         }
                     }
@@ -151,6 +152,7 @@ public class DistinctTriplesEqualityBaseline {
                             }
                             map.put(targetDataset, ++count);
                         }
+                        targetVqe.close();
                         targetGraph.close();
                     }
                 }
@@ -158,6 +160,7 @@ public class DistinctTriplesEqualityBaseline {
             totalTripleMap.put(sourceDataset, totalTriples);
             commonMap.put(sourceDataset, map);
             doneList.add(sourceDataset);
+            vqe.close();
             graph.close();
         }
 
