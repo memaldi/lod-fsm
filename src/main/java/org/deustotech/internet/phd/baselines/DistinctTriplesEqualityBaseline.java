@@ -54,7 +54,7 @@ public class DistinctTriplesEqualityBaseline {
 
         ThriftClient client = null;
         try {
-            client = ThriftClient.create("localhost", 15867);
+            client = ThriftClient.create("helheim", 15867);
         } catch (TException e) {
             e.printStackTrace();
             System.exit(1);
@@ -118,6 +118,7 @@ public class DistinctTriplesEqualityBaseline {
                             if (!ask) {
                                 datasetSet.add(dataset);
                             }
+                            targetGraph.close();
                         }
                     }
 
@@ -126,7 +127,15 @@ public class DistinctTriplesEqualityBaseline {
                 totalTriples++;
                 for (String targetDataset : datasetList) {
                     if ((!doneList.contains(targetDataset)) && (!targetDataset.equals(sourceDataset)) && (!exclusionMap.get(predicate.toString()).contains(targetDataset))) {
-                        VirtGraph targetGraph = new VirtGraph("http://" + targetDataset, connectionURL.toString(), prop.getProperty("virtuoso_user"), prop.getProperty("virtuoso_password"));
+                        VirtGraph targetGraph = null;
+                        try {
+                            targetGraph = new VirtGraph("http://" + targetDataset, connectionURL.toString(), prop.getProperty("virtuoso_user"), prop.getProperty("virtuoso_password"));
+                        } catch (Exception e) {
+                            logger.warning(targetDataset);
+                            logger.warning(connectionURL.toString());
+                            e.printStackTrace();
+
+                        }
                         Query targetQuery;
                         if (object.isLiteral()) {
                             targetQuery = QueryFactory.create(String.format("ASK { ?s <%s> \"%s\"}", predicate, object.toString().replace("\"", "").replace("\\", "").replace("\n", "")));
@@ -164,6 +173,7 @@ public class DistinctTriplesEqualityBaseline {
                     tripleCount++;
                 }
                 totalTripleMap.put(dataset, tripleCount);
+                graph.close();
             }
         }
 
