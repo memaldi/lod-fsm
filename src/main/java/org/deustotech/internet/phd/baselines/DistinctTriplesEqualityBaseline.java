@@ -129,7 +129,7 @@ public class DistinctTriplesEqualityBaseline {
                         VirtGraph targetGraph = new VirtGraph("http://" + targetDataset, connectionURL.toString(), prop.getProperty("virtuoso_user"), prop.getProperty("virtuoso_password"));
                         Query targetQuery;
                         if (object.isLiteral()) {
-                            targetQuery = QueryFactory.create(String.format("ASK { ?s <%s> \"%s\"}", predicate, object.toString().replace("\"", "").replace("\\", "")));
+                            targetQuery = QueryFactory.create(String.format("ASK { ?s <%s> \"%s\"}", predicate, object.toString().replace("\"", "").replace("\\", "").replace("\n", "")));
                         } else {
                             targetQuery = QueryFactory.create(String.format("ASK { ?s <%s> <%s>}", predicate, object));
                         }
