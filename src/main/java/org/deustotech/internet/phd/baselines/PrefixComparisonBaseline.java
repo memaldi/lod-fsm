@@ -321,7 +321,7 @@ public class PrefixComparisonBaseline {
             }
             String key = null;
             for (Cell cell : hqlResult.getCells()) {
-                key = cell.getKey().toString();
+                key = cell.getKey().getRow();   
             }
             if (key != null) {
                 nickToName.put(nick, key);
