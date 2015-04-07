@@ -9,6 +9,7 @@ import net.ericaro.neoitertools.Generator;
 import net.ericaro.neoitertools.Itertools;
 import org.apache.http.client.utils.URIBuilder;
 import org.apache.thrift.TException;
+import org.apache.xerces.impl.xpath.regex.Match;
 import org.deustotech.internet.phd.framework.matchsubgraphs.MatchSubgraphs;
 import org.hypertable.thrift.ThriftClient;
 import org.hypertable.thriftgen.Cell;
@@ -224,6 +225,8 @@ public class PrefixComparisonBaseline {
         }
 
         Map<String, List<String>> goldStandard = MatchSubgraphs.loadGoldStandard(true);
+        Map<String, String> nickToName = getNames(goldStandard);
+        System.out.println(nickToName);
 
         File file = new File("prefixcomparisonbaseline.csv");
         BufferedWriter bw = null;
@@ -289,5 +292,41 @@ public class PrefixComparisonBaseline {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    private static Map<String, String> getNames(Map<String, List<String>> goldStandard) {
+        ThriftClient client = null;
+        try {
+            client = ThriftClient.create("localhost", 15867);
+        } catch (TException e) {
+            e.printStackTrace();
+            System.exit(1);
+        }
+        long ns = 0;
+        try {
+            ns = client.namespace_open("gs");
+        } catch (TException e) {
+            e.printStackTrace();
+        }
+
+        Map<String, String> nickToName = new HashMap<>();
+        for (String nick : goldStandard.keySet()) {
+            String query = String.format("SELECT * FROM datahubgs WHERE nick = %s KEYS_ONLY", nick);
+
+            HqlResult hqlResult = null;
+            try {
+                hqlResult = client.hql_query(ns, query);
+            } catch (TException e) {
+                e.printStackTrace();
+            }
+            String key = null;
+            for (Cell cell : hqlResult.getCells()) {
+                key = cell.getKey().toString();
+            }
+            if (key != null) {
+                nickToName.put(nick, key);
+            }
+        }
+        return nickToName;
     }
 }
