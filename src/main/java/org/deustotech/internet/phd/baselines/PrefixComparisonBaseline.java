@@ -47,7 +47,7 @@ public class PrefixComparisonBaseline {
         }
     }
 
-    public static void run() {
+    public static void run(boolean noRkb) {
         Set<String> datasetList = new HashSet<String>();
 
         Properties prop = new Properties();
@@ -226,7 +226,6 @@ public class PrefixComparisonBaseline {
 
         Map<String, List<String>> goldStandard = MatchSubgraphs.loadGoldStandard(true);
         Map<String, String> nickToName = getNames(goldStandard);
-        System.out.println(nickToName);
 
         File file = new File("prefixcomparisonbaseline.csv");
         BufferedWriter bw = null;
@@ -245,21 +244,25 @@ public class PrefixComparisonBaseline {
             int tn = 0;
             double threshold = Double.parseDouble(range[i]);
             for (String source : matchMap.keySet()) {
-                List<String> linkList = goldStandard.get(source);
-                Map<String, Float> scoreMap = matchMap.get(source);
-                for (String target : scoreMap.keySet()) {
-                    float score = scoreMap.get(target);
-                    if (linkList.contains(target)) {
-                        if (score > threshold) {
-                            tp++;
-                        } else {
-                            fn++;
-                        }
-                    } else {
-                        if (score > threshold) {
-                            fp++;
-                        } else {
-                            tn++;
+                if (!nickToName.get(source).startsWith("rkb-") && noRkb) {
+                    List<String> linkList = goldStandard.get(source);
+                    Map<String, Float> scoreMap = matchMap.get(source);
+                    for (String target : scoreMap.keySet()) {
+                        if (!nickToName.get(target).startsWith("rkb-") && noRkb) {
+                            float score = scoreMap.get(target);
+                            if (linkList.contains(target)) {
+                                if (score > threshold) {
+                                    tp++;
+                                } else {
+                                    fn++;
+                                }
+                            } else {
+                                if (score > threshold) {
+                                    fp++;
+                                } else {
+                                    tn++;
+                                }
+                            }
                         }
                     }
                 }
