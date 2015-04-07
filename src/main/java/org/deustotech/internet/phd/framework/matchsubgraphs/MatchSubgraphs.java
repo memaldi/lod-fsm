@@ -4,6 +4,7 @@ import net.ericaro.neoitertools.Generator;
 import net.ericaro.neoitertools.Itertools;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.thrift.TException;
+import org.deustotech.internet.phd.baselines.PrefixComparisonBaseline;
 import org.deustotech.internet.phd.framework.model.Dataset;
 import org.deustotech.internet.phd.framework.model.Edge;
 import org.deustotech.internet.phd.framework.model.Graph;
@@ -30,7 +31,7 @@ public class MatchSubgraphs {
 
     private static List<String> distanceList = new ArrayList<>();
 
-    public static void run(String subduePath, boolean applyStringDistances, boolean loadUserData) {
+    public static void run(String subduePath, boolean applyStringDistances, boolean loadUserData, boolean noRkb) {
 
         distanceList.add("basicSynonymDistance");
         distanceList.add("subStringDistance");
@@ -78,7 +79,7 @@ public class MatchSubgraphs {
         }
 
         Map<String, List<String>> goldStandard = loadGoldStandard(loadUserData);
-
+        Map<String, String> nickToName = PrefixComparisonBaseline.getNames(goldStandard);
         List<String> fpList = new ArrayList<>();
 
         createSimilarityTable(client, ns);
@@ -171,45 +172,47 @@ public class MatchSubgraphs {
                             List<String> pair = graphPermutations.next();
                             String source = pair.get(0);
                             String target = pair.get(1);
-                            List<String> linkList = goldStandard.get(source.replace(".g", "").toLowerCase());
-                            if (!source.equals(target)) {
-                                String value = "no";
-                                if (linkList != null) {
-                                    if (linkList.contains(target.replace(".g", "").toLowerCase())) {
-                                        value = "yes";
-                                    }
-                                }
-
-                                Double similarity = null;
-                                if (distanceMap.containsKey(source)) {
-                                    if (distanceMap.get(source).containsKey(target)) {
-                                        similarity = distanceMap.get(source).get(target);
-                                    }
-                                } else {
-                                    similarity = distanceMap.get(target).get(source);
-                                }
-
-                                String status = "";
-                                if (similarity > i && value.equals("yes")) {
-                                    tp++;
-                                    status = "TP";
-                                } else if (similarity > i && value.equals("no")) {
-                                    fp++;
-                                    status = "FP";
-                                    if (i > 0.5 && sim > 0.5) {
-                                        if (!fpList.contains(String.format("%s;%s\n", source, target)) && !fpList.contains(String.format("%s;%s\n", target, source))) {
-                                            fpList.add(String.format("%s;%s\n", source, target));
+                            if (!nickToName.get(source.replace(".g", "")).startsWith("rkb-") || !nickToName.get(target.replace(".g", "")).startsWith("rkb-") || !noRkb) {
+                                List<String> linkList = goldStandard.get(source.replace(".g", "").toLowerCase());
+                                if (!source.equals(target)) {
+                                    String value = "no";
+                                    if (linkList != null) {
+                                        if (linkList.contains(target.replace(".g", "").toLowerCase())) {
+                                            value = "yes";
                                         }
                                     }
-                                } else if (similarity <= i && value.equals("yes")) {
-                                    fn++;
-                                    status = "FN";
-                                } else if (similarity <= i && value.equals("no")) {
-                                    tn++;
-                                    status = "TN";
+
+                                    Double similarity = null;
+                                    if (distanceMap.containsKey(source)) {
+                                        if (distanceMap.get(source).containsKey(target)) {
+                                            similarity = distanceMap.get(source).get(target);
+                                        }
+                                    } else {
+                                        similarity = distanceMap.get(target).get(source);
+                                    }
+
+                                    String status = "";
+                                    if (similarity > i && value.equals("yes")) {
+                                        tp++;
+                                        status = "TP";
+                                    } else if (similarity > i && value.equals("no")) {
+                                        fp++;
+                                        status = "FP";
+                                        if (i > 0.5 && sim > 0.5) {
+                                            if (!fpList.contains(String.format("%s;%s\n", source, target)) && !fpList.contains(String.format("%s;%s\n", target, source))) {
+                                                fpList.add(String.format("%s;%s\n", source, target));
+                                            }
+                                        }
+                                    } else if (similarity <= i && value.equals("yes")) {
+                                        fn++;
+                                        status = "FN";
+                                    } else if (similarity <= i && value.equals("no")) {
+                                        tn++;
+                                        status = "TN";
+                                    }
+                                    String string = String.format("%s - %s (%s) (%s)\n", source, target, similarity, status);
+                                    detailsBW.write(string);
                                 }
-                                String string = String.format("%s - %s (%s) (%s)\n", source, target, similarity, status);
-                                detailsBW.write(string);
                             }
                         } catch (NoSuchElementException e) {
                             end = true;

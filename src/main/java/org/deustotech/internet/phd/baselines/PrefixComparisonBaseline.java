@@ -244,11 +244,11 @@ public class PrefixComparisonBaseline {
             int tn = 0;
             double threshold = Double.parseDouble(range[i]);
             for (String source : matchMap.keySet()) {
-                if (!nickToName.get(source).startsWith("rkb-") && noRkb) {
+                if (!nickToName.get(source).startsWith("rkb-") || !noRkb) {
                     List<String> linkList = goldStandard.get(source);
                     Map<String, Float> scoreMap = matchMap.get(source);
                     for (String target : scoreMap.keySet()) {
-                        if (!nickToName.get(target).startsWith("rkb-") && noRkb) {
+                        if (!nickToName.get(target).startsWith("rkb-") || !noRkb) {
                             float score = scoreMap.get(target);
                             if (linkList.contains(target)) {
                                 if (score > threshold) {
@@ -297,7 +297,7 @@ public class PrefixComparisonBaseline {
         }
     }
 
-    private static Map<String, String> getNames(Map<String, List<String>> goldStandard) {
+    public static Map<String, String> getNames(Map<String, List<String>> goldStandard) {
         ThriftClient client = null;
         try {
             client = ThriftClient.create("localhost", 15867);
