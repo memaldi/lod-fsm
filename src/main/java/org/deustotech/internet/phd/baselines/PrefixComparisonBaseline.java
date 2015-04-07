@@ -311,8 +311,7 @@ public class PrefixComparisonBaseline {
 
         Map<String, String> nickToName = new HashMap<>();
         for (String nick : goldStandard.keySet()) {
-            String query = String.format("SELECT * FROM datahubgs WHERE nick = %s KEYS_ONLY", nick);
-
+            String query = String.format("SELECT * FROM datahubgs WHERE nickname = '%s' KEYS_ONLY", nick);
             HqlResult hqlResult = null;
             try {
                 hqlResult = client.hql_query(ns, query);
