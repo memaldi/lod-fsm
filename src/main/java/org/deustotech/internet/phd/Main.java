@@ -66,7 +66,7 @@ public class Main {
                 PrefixComparisonBaseline.run(Boolean.parseBoolean(args[1]));
                 break;
             case "ontologyrankingbaseline":
-                OntologyRankingBaseline.run();
+                OntologyRankingBaseline.run(Boolean.parseBoolean(args[1]));
             case "distincttriplesequalitybaseline":
                 DistinctTriplesEqualityBaseline.run();
 

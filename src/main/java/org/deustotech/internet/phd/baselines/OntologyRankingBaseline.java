@@ -31,7 +31,7 @@ public class OntologyRankingBaseline {
 
     private static String [] range = new String[] {"0.0", "0.1", "0.2", "0.3", "0.4", "0.5", "0.6", "0.7", "0.8", "0.9"};
 
-    public static void run() {
+    public static void run(boolean noRkb) {
         Logger logger = Logger.getLogger(OntologyRankingBaseline.class.getName());
         logger.info("Initializing...");
         Properties prop = new Properties();
@@ -223,6 +223,7 @@ public class OntologyRankingBaseline {
         }
 
         Map<String, List<String>> goldStandard = MatchSubgraphs.loadGoldStandard(true);
+        Map<String, String> nickToName = PrefixComparisonBaseline.getNames(goldStandard);
 
         File file = new File("ontologyRankingBaseline.csv");
         BufferedWriter bw = null;
@@ -241,38 +242,42 @@ public class OntologyRankingBaseline {
             int fn = 0;
             double threshold = Double.parseDouble(range[j]);
             for (String sourceDataset : distanceMap.keySet()) {
-                for (String targetDataset : distanceMap.get(sourceDataset).keySet()) {
-                    float score = 0;
-                    if (distanceMap.containsKey(sourceDataset)) {
-                        if (distanceMap.get(sourceDataset).containsKey(targetDataset)) {
-                            score = distanceMap.get(sourceDataset).get(targetDataset);
-                        }
-                    } else if (distanceMap.containsKey(targetDataset)) {
-                        if (distanceMap.get(targetDataset).containsKey(sourceDataset)) {
-                            score = distanceMap.get(targetDataset).get(sourceDataset);
-                        }
-                    }
+                if (!nickToName.get(sourceDataset).startsWith("rkb-") || !noRkb) {
+                    for (String targetDataset : distanceMap.get(sourceDataset).keySet()) {
+                        if (!nickToName.get(targetDataset).startsWith("rkb-") || !noRkb) {
+                            float score = 0;
+                            if (distanceMap.containsKey(sourceDataset)) {
+                                if (distanceMap.get(sourceDataset).containsKey(targetDataset)) {
+                                    score = distanceMap.get(sourceDataset).get(targetDataset);
+                                }
+                            } else if (distanceMap.containsKey(targetDataset)) {
+                                if (distanceMap.get(targetDataset).containsKey(sourceDataset)) {
+                                    score = distanceMap.get(targetDataset).get(sourceDataset);
+                                }
+                            }
 
-                    boolean linked = false;
+                            boolean linked = false;
 
-                    if (goldStandard.containsKey(sourceDataset)) {
-                        if (goldStandard.get(sourceDataset).contains(targetDataset)) {
-                            linked = true;
-                        }
-                    } else if (goldStandard.containsKey(targetDataset)) {
-                        if (goldStandard.get(targetDataset).contains(sourceDataset)) {
-                            linked = true;
-                        }
-                    }
+                            if (goldStandard.containsKey(sourceDataset)) {
+                                if (goldStandard.get(sourceDataset).contains(targetDataset)) {
+                                    linked = true;
+                                }
+                            } else if (goldStandard.containsKey(targetDataset)) {
+                                if (goldStandard.get(targetDataset).contains(sourceDataset)) {
+                                    linked = true;
+                                }
+                            }
 
-                    if (score > threshold && linked) {
-                        tp++;
-                    } else if (score > threshold && !linked) {
-                        fp++;
-                    } else if (score <= threshold && linked) {
-                        fn++;
-                    } else if (score <= threshold && !linked) {
-                        tn++;
+                            if (score > threshold && linked) {
+                                tp++;
+                            } else if (score > threshold && !linked) {
+                                fp++;
+                            } else if (score <= threshold && linked) {
+                                fn++;
+                            } else if (score <= threshold && !linked) {
+                                tn++;
+                            }
+                        }
                     }
                 }
             }
